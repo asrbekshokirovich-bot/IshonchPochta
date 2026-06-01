@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <!-- ───────── Security headers (Part 2.4) ─────────
+       NOTE: script-src must include cdn.tailwindcss.com + 'unsafe-eval',
+       otherwise the Tailwind Play CDN cannot run and the page is unstyled.
+       'unsafe-eval' weakens the policy; the proper fix is to build Tailwind
+       locally and drop it. X-Frame-Options / nosniff via <meta> are ignored
+       by browsers (they only work as real HTTP headers) — frame-ancestors in
+       a header-delivered CSP is the real clickjacking control. They are kept
+       here as requested and as documentation. -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.sheetjs.com https://cdnjs.cloudflare.com;
+             style-src 'unsafe-inline';
+             connect-src https://dhqzairyxzoppskzpzxr.supabase.co;
+             img-src 'self' data: blob:;
+             object-src 'none';
+             base-uri 'self';
+             form-action 'none';" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Admin · Ishonch Logistics</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Crect width='60' height='60' rx='12' fill='%230A2472'/%3E%3Cpath d='M8 38 Q22 8 46 14 Q34 24 24 26 Q34 26 50 24 Q36 34 22 34 Q32 36 46 34 L16 44 Z' fill='%23378ADD'/%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root { --navy:#0A2472; --blue:#378ADD; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .btn-navy  { background:#0A2472; color:#fff; }
+    .btn-navy:hover  { background:#081e60; }
+    .btn-blue  { background:#378ADD; color:#fff; }
+    .btn-blue:hover  { background:#2a76c2; }
+    .text-navy { color:#0A2472; }
+
+    .badge {
+      display:inline-flex; align-items:center;
+      padding:4px 10px; border-radius:999px;
+      font-size:12px; font-weight:600;
+      border:0; cursor:pointer;
+      appearance:none; -webkit-appearance:none;
+      background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+      background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
+      background-size: 4px 4px, 4px 4px;
+      background-repeat: no-repeat;
+      padding-right: 22px;
+    }
+    .badge-accepted          { background-color:#dbeafe; color:#1e40af; }
+    .badge-in_transit        { background-color:#fef3c7; color:#92400e; }
+    .badge-out_for_delivery  { background-color:#fed7aa; color:#9a3412; }
+    .badge-delivered         { background-color:#d1fae5; color:#065f46; }
+
+    .toast {
+      position:fixed; top:20px; right:20px;
+      padding:10px 18px; border-radius:10px;
+      color:#fff; font-weight:600; font-size:14px;
+      box-shadow:0 12px 32px rgba(10,36,114,0.18);
+      z-index:100;
+      transform:translateY(-8px); opacity:0;
+      transition:transform .18s ease, opacity .18s ease;
+    }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .toast-ok  { background:#16a34a; }
+    .toast-err { background:#dc2626; }
+
+    input, select { outline:none; }
+    input:focus, select:focus { border-color:#378ADD; box-shadow:0 0 0 3px rgba(55,138,221,0.18); }
+
+    .tab-btn {
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: 1.5px solid #0A2472;
+      background: #fff;
+      color: #0A2472;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      display: inline-flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+    }
+    .tab-btn:hover  { background: rgba(55,138,221,0.10); }
+    .tab-btn.active { background: #0A2472; color: #fff; }
+    .tab-btn .tab-count { font-size: 12px; opacity: 0.85; font-weight: 700; }
+
+    /* ───────── Login overlay (Part 1) ───────── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #0A2472 0%, #081e60 55%, #378ADD 140%);
+    }
+    #login-overlay.hidden { display: none; }
+    .login-card {
+      width: 100%; max-width: 380px;
+      background: #fff; border-radius: 18px;
+      padding: 32px 28px;
+      box-shadow: 0 24px 60px rgba(8,30,96,0.35);
+      text-align: center;
+    }
+    .login-card img { height: 60px; width: auto; margin: 0 auto 14px; display: block; }
+    .login-card h1 { font-size: 20px; font-weight: 800; color: #0A2472; margin-bottom: 22px; }
+    .login-field { position: relative; margin-bottom: 14px; text-align: left; }
+    .login-field .ico {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: #94a3b8; pointer-events: none; width: 18px; height: 18px;
+    }
+    .login-field input {
+      width: 100%; padding: 11px 12px 11px 38px;
+      border: 1.5px solid #cbd5e1; border-radius: 10px;
+      font-size: 14px; background: #fff;
+    }
+    .login-field input.has-toggle { padding-right: 42px; }
+    .login-field .toggle-pass {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: none; border: 0; cursor: pointer; padding: 6px;
+      color: #64748b; line-height: 0;
+    }
+    .login-field .toggle-pass:hover { color: #0A2472; }
+    #login-btn {
+      width: 100%; padding: 12px; margin-top: 4px;
+      background: #0A2472; color: #fff; font-weight: 700; font-size: 15px;
+      border: 0; border-radius: 10px; cursor: pointer;
+      transition: background .15s ease;
+    }
+    #login-btn:hover { background: #081e60; }
+    #login-error {
+      min-height: 20px; margin-top: 12px;
+      color: #dc2626; font-size: 13px; font-weight: 600;
+    }
+    .logout-btn {
+      padding: 6px 14px; border-radius: 8px;
+      background: #fee2e2; color: #b91c1c;
+      font-weight: 600; font-size: 13px; border: 0; cursor: pointer;
+    }
+    .logout-btn:hover { background: #fecaca; }
+    body.locked { overflow: hidden; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 locked">
+
+  <!-- ───────── Login overlay (Part 1) ───────── -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <img src="assets/ishonch-logo-full.png" alt="Ishonch Logistics" />
+      <h1>🔐 Admin Panel</h1>
+
+      <div class="login-field">
+        <svg class="ico" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg>
+        <input id="login-username" type="text" autocomplete="username" placeholder="Foydalanuvchi nomi" maxlength="64" />
+      </div>
+
+      <div class="login-field">
+        <svg class="ico" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 10V7a4 4 0 00-8 0v3M5 10h14a1 1 0 011 1v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8a1 1 0 011-1z"/></svg>
+        <input id="login-password" type="password" autocomplete="current-password" class="has-toggle" placeholder="Parol" maxlength="128" />
+        <button type="button" class="toggle-pass" id="toggle-pass" aria-label="Parolni ko'rsatish">
+          <svg id="eye-open" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg id="eye-closed" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="display:none"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2M9.9 4.9A9.8 9.8 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.1 3.9M6.1 6.1A17 17 0 002 12s3.5 7 10 7a9.8 9.8 0 003.1-.5"/></svg>
+        </button>
+      </div>
+
+      <button id="login-btn" type="button">Kirish</button>
+      <div id="login-error"></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-3">
+        <img src="assets/ishonch-logo-full.png" alt="Ishonch Logistics" style="height:64px;width:auto;display:block" />
+        <span class="hidden sm:inline-block text-xs font-semibold px-2 py-1 rounded-md" style="background:#0A2472;color:#fff">ADMIN</span>
+      </a>
+      <nav class="flex items-center gap-4 text-sm">
+        <a href="track.html" class="text-slate-600 hover:text-navy">Kuzatish</a>
+        <a href="index.html" class="text-slate-600 hover:text-navy">Sayt</a>
+        <button type="button" class="logout-btn" onclick="logout()">Chiqish</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+    <!-- Stats -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl p-5 border border-slate-200">
+        <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Jami</div>
+        <div id="stat-total" class="mt-2 text-3xl font-extrabold text-navy">—</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-200">
+        <div class="text-xs text-blue-700 uppercase tracking-wider font-semibold">Qabul qilindi</div>
+        <div id="stat-accepted" class="mt-2 text-3xl font-extrabold text-blue-700">—</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-200">
+        <div class="text-xs text-amber-700 uppercase tracking-wider font-semibold">Yo'lda</div>
+        <div id="stat-transit" class="mt-2 text-3xl font-extrabold text-amber-700">—</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-slate-200">
+        <div class="text-xs text-emerald-700 uppercase tracking-wider font-semibold">Yetkazildi</div>
+        <div id="stat-delivered" class="mt-2 text-3xl font-extrabold text-emerald-700">—</div>
+      </div>
+    </section>
+
+    <!-- Tabs -->
+    <section>
+      <div class="flex flex-wrap gap-2">
+        <button class="tab-btn active" data-tab="all">
+          📦 Barcha yuklar
+        </button>
+        <button class="tab-btn" data-tab="punktda">
+          🏪 Punktda <span class="tab-count" id="tab-count-punktda">(0)</span>
+        </button>
+        <button class="tab-btn" data-tab="topshirildi">
+          ✅ Topshirildi <span class="tab-count" id="tab-count-topshirildi">(0)</span>
+        </button>
+      </div>
+      <div id="punktda-banner" class="hidden mt-3 px-4 py-3 rounded-lg bg-amber-100 border border-amber-300 text-amber-900 text-sm font-semibold">
+        🏪 Bu yuklar punktda turibdi — kuryer olib ketishi kutilmoqda
+      </div>
+    </section>
+
+    <!-- Add + Import -->
+    <section class="grid lg:grid-cols-2 gap-6">
+
+      <!-- Add -->
+      <div class="bg-white rounded-xl p-6 border border-slate-200">
+        <h2 class="text-lg font-bold text-navy mb-4">Yangi yuk qo'shish</h2>
+        <form id="add-form" class="grid grid-cols-2 gap-3 text-sm">
+          <input name="tracking_code" required placeholder="Tracking kod (TN12345678)" class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg" />
+
+          <input name="sender_name"    placeholder="Jo'natuvchi ism"      class="px-3 py-2 border border-slate-300 rounded-lg" />
+          <input name="sender_phone"   placeholder="Jo'natuvchi telefon"  class="px-3 py-2 border border-slate-300 rounded-lg" />
+          <input name="sender_city"    placeholder="Jo'natuvchi shahar"   class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg" />
+
+          <input name="receiver_name"  placeholder="Qabul qiluvchi ism"     class="px-3 py-2 border border-slate-300 rounded-lg" />
+          <input name="receiver_phone" placeholder="Qabul qiluvchi telefon" class="px-3 py-2 border border-slate-300 rounded-lg" />
+          <input name="receiver_city"  placeholder="Qabul qiluvchi shahar"  class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg" />
+
+          <input name="weight_kg" type="number" step="0.01" min="0" placeholder="Og'irlik (kg)" class="px-3 py-2 border border-slate-300 rounded-lg" />
+          <select name="package_type" class="px-3 py-2 border border-slate-300 rounded-lg bg-white">
+            <option value="Standart">Standart</option>
+            <option value="Hujjat">Hujjat</option>
+            <option value="Posilka">Posilka</option>
+            <option value="Mo'rt yuk">Mo'rt yuk</option>
+            <option value="Yirik yuk">Yirik yuk</option>
+          </select>
+
+          <select name="status" class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg bg-white">
+            <option value="accepted">Qabul qilindi</option>
+            <option value="in_transit">Yo'lda</option>
+            <option value="out_for_delivery">Yetkazib berishda</option>
+            <option value="delivered">Yetkazildi</option>
+          </select>
+
+          <input name="notes" placeholder="Izoh (ixtiyoriy)" class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg" />
+
+          <button type="submit" class="col-span-2 mt-1 py-2.5 rounded-lg font-semibold btn-navy transition-colors">Saqlash</button>
+        </form>
+      </div>
+
+      <!-- Import -->
+      <div class="bg-white rounded-xl p-6 border border-slate-200 flex flex-col">
+        <h2 class="text-lg font-bold text-navy mb-2">Excel / CSV import</h2>
+        <p class="text-sm text-slate-500 mb-4">
+          Ustunlar (birinchi qator sarlavha):
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">tracking_code</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">sender_name</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">sender_city</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">receiver_name</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">receiver_city</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">receiver_phone</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">weight_kg</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">package_type</code>,
+          <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">status</code>.
+        </p>
+
+        <label class="flex-1 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-center px-4 py-8 cursor-pointer hover:bg-slate-50 transition-colors">
+          <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="mt-3 text-sm font-semibold text-slate-700">Faylni tanlang yoki shu yerga sudrang</div>
+          <div class="mt-1 text-xs text-slate-500">.xlsx, .xls yoki .csv</div>
+          <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="hidden" />
+        </label>
+
+        <div id="excel-status" class="mt-3 text-sm min-h-[20px]"></div>
+
+        <button id="excel-import-btn" disabled
+          class="mt-3 py-2.5 rounded-lg font-semibold btn-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          Import qilish
+        </button>
+      </div>
+
+    </section>
+
+    <!-- Shipments table -->
+    <section class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-bold text-navy">Yuklar ro'yxati</h2>
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <input id="search" placeholder="Tracking yoki qabul qiluvchi..."
+            class="px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 text-sm" />
+          <select id="status-filter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+            <option value="">Barcha statuslar</option>
+            <option value="accepted">Qabul qilindi</option>
+            <option value="picked_up">Kuryer oldi</option>
+            <option value="in_transit">Yo'lda</option>
+            <option value="out_for_delivery">Yetkazib berishda</option>
+            <option value="delivered">Yetkazildi</option>
+          </select>
+          <select id="region-filter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+            <option value="">Barcha viloyatlar</option>
+            <option value="Samarqand">Samarqand</option>
+            <option value="Navoiy">Navoiy</option>
+            <option value="Andijon">Andijon</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider">
+            <tr>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Tracking</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Yo'nalish</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Qabul qiluvchi</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Telefon</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Status</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Og'irlik</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Sana</th>
+              <th class="text-right px-4 py-3 whitespace-nowrap">Amallar</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+
+      <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
+        <div id="page-info" class="text-sm text-slate-500">—</div>
+        <div class="flex gap-2">
+          <button id="prev-page" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">← Oldingi</button>
+          <button id="next-page" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Keyingi →</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://dhqzairyxzoppskzpzxr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_pjDSopKeZlYFqToEBDrvLw_Q7QO_IOd';
+
+    /* ═══════════════════════════════════════════════════════
+       AUTH (Part 1)
+       WARNING: this is a CLIENT-SIDE gate only. The Supabase
+       publishable key above is shipped to every browser, so the
+       login does NOT protect the data by itself — the real access
+       control MUST be Supabase Row Level Security policies on the
+       `shipments` table. Treat this login as UX, not a security
+       boundary.
+       ═══════════════════════════════════════════════════════ */
+    const ADMIN_USER = "admin";
+    // SHA-256 of "ishonch2025" (computed correctly — the value in the
+    // original spec was a placeholder and would never match).
+    const ADMIN_PASS_HASH = "2081046562885dc1eed6a0fa96d01ce486b5c7235b2b1fa16c1940c0cca004fb";
+    const MAX_ATTEMPTS = 5;
+    const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function showLoginError(msg) {
+      const el = document.getElementById('login-error');
+      if (el) el.textContent = msg;
+    }
+
+    function showMainContent() {
+      document.getElementById('login-overlay').classList.add('hidden');
+      document.body.classList.remove('locked');
+      lastActivity = Date.now();
+      // Data is only ever fetched AFTER authentication.
+      loadStats();
+      loadPage();
+    }
+
+    function logout() {
+      sessionStorage.clear();
+      location.reload();
+    }
+
+    async function doLogin() {
+      const u = document.getElementById("login-username").value.trim();
+      const p = document.getElementById("login-password").value;
+
+      // Rate limiting — max 5 attempts
+      const attempts = parseInt(sessionStorage.getItem("login_attempts") || "0", 10);
+      if (attempts >= MAX_ATTEMPTS) {
+        showLoginError("Juda ko'p urinish. Sahifani yangilang.");
+        return;
+      }
+
+      const hash = await sha256(p);
+
+      if (u === ADMIN_USER && hash === ADMIN_PASS_HASH) {
+        const token = crypto.randomUUID();
+        sessionStorage.setItem("admin_token", token);
+        sessionStorage.setItem("admin_logged_in", "true");
+        sessionStorage.removeItem("login_attempts");
+        showMainContent();
+      } else {
+        sessionStorage.setItem("login_attempts", String(attempts + 1));
+        showLoginError(`❌ Noto'g'ri. Urinishlar qoldi: ${MAX_ATTEMPTS - attempts - 1}`);
+      }
+    }
+
+    function getHeaders() {
+      if (sessionStorage.getItem("admin_logged_in") !== "true") {
+        logout();
+        throw new Error("Not authenticated");
+      }
+      return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+      };
+    }
+
+    /* ───────── Rate-limited fetch (Part 2.3) ───────── */
+    let lastApiCall = 0;
+    async function rateLimitedFetch(url, options) {
+      const now = Date.now();
+      if (now - lastApiCall < 500) {
+        await new Promise(r => setTimeout(r, 500 - (now - lastApiCall)));
+      }
+      lastApiCall = Date.now();
+      return fetch(url, options);
+    }
+
+    /* ───────── Input validation (Part 2.2) ───────── */
+    const VALID_TRACKING = /^[A-Z0-9\s\-]{1,50}$/i;
+    const VALID_PHONE    = /^[0-9+\s\-]{1,20}$/;
+
+    // Returns a cleaned record, or throws Error(message) when invalid.
+    function validateShipment(data) {
+      const out = {};
+
+      const code = String(data.tracking_code ?? '').trim().toUpperCase();
+      if (!VALID_TRACKING.test(code)) {
+        throw new Error("Tracking kod faqat harf, raqam, probel va '-' (maks 50 belgi)");
+      }
+      out.tracking_code = code;
+
+      for (const f of ['sender_phone', 'receiver_phone']) {
+        const v = String(data[f] ?? '').trim();
+        if (v) {
+          if (!VALID_PHONE.test(v)) throw new Error("Telefon raqam noto'g'ri (faqat raqam, +, -, probel; maks 20)");
+          out[f] = v;
+        }
+      }
+
+      if (data.weight_kg !== undefined && data.weight_kg !== '' && data.weight_kg !== null) {
+        const w = parseFloat(data.weight_kg);
+        if (!Number.isFinite(w) || w < 0 || w > 9999) throw new Error("Og'irlik 0 va 9999 oralig'ida bo'lsin");
+        out.weight_kg = w;
+      }
+
+      for (const f of ['sender_name', 'sender_city', 'receiver_name', 'receiver_city', 'package_type', 'status', 'notes']) {
+        const v = String(data[f] ?? '').trim();
+        if (v) out[f] = v.slice(0, 200);
+      }
+      return out;
+    }
+
+    const HEADERS = null; // removed — use getHeaders() instead
+
+    const PAGE_SIZE = 20;
+    let page = 0;
+    let searchQuery = '';
+    let statusFilter = '';
+    let regionFilter = '';
+    let totalRows = 0;
+
+    // Map between tab key and the status value it selects.
+    const TAB_TO_STATUS = { all: '', punktda: 'accepted', topshirildi: 'delivered' };
+    const STATUS_TO_TAB = { '': 'all', accepted: 'punktda', delivered: 'topshirildi' };
+
+    function syncTabUI() {
+      const activeTab = STATUS_TO_TAB[statusFilter] || 'all';
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === activeTab);
+      });
+      const banner = document.getElementById('punktda-banner');
+      banner.classList.toggle('hidden', activeTab !== 'punktda');
+    }
+
+    const STATUS_LABELS = {
+      accepted:         'Qabul qilindi',
+      in_transit:       "Yo'lda",
+      out_for_delivery: 'Yetkazib berishda',
+      delivered:        'Yetkazildi',
+    };
+
+    const $  = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    function toast(msg, ok = true) {
+      const t = $('#toast');
+      t.textContent = msg;
+      t.className = 'toast show ' + (ok ? 'toast-ok' : 'toast-err');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { t.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err'); }, 2600);
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+    // Alias required by the spec (Part 2.1) — identical escaping.
+    const esc = escapeHtml;
+
+    function fmtDate(s) {
+      if (!s) return '—';
+      try {
+        const d = new Date(s);
+        return d.toLocaleString('uz-UZ', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      } catch { return s; }
+    }
+
+    /* ────────── Stats ────────── */
+    async function loadStats() {
+      try {
+        const [total, acc, tr, del] = await Promise.all([
+          countWhere(''),
+          countWhere('status=eq.accepted'),
+          countWhere('status=eq.in_transit'),
+          countWhere('status=eq.delivered'),
+        ]);
+        $('#stat-total').textContent     = total;
+        $('#stat-accepted').textContent  = acc;
+        $('#stat-transit').textContent   = tr;
+        $('#stat-delivered').textContent = del;
+        $('#tab-count-punktda').textContent     = `(${acc})`;
+        $('#tab-count-topshirildi').textContent = `(${del})`;
+      } catch (e) {
+        console.error('loadStats', e);
+      }
+    }
+
+    async function countWhere(filter) {
+      const url = `${SUPABASE_URL}/rest/v1/shipments?${filter ? filter + '&' : ''}select=id`;
+      const r = await rateLimitedFetch(url, {
+        method: 'HEAD',
+        headers: { ...getHeaders(), 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' },
+      });
+      const range = r.headers.get('Content-Range') || '*/0';
+      return parseInt(range.split('/')[1] || '0', 10);
+    }
+
+    /* ────────── Table ────────── */
+    async function loadPage() {
+      const parts = [];
+      if (searchQuery) {
+        const q = encodeURIComponent('%' + searchQuery + '%');
+        parts.push(`or=(tracking_code.ilike.${q},receiver_name.ilike.${q})`);
+      }
+      if (statusFilter) {
+        parts.push(`status=eq.${encodeURIComponent(statusFilter)}`);
+      }
+      if (regionFilter) {
+        const r = encodeURIComponent('%' + regionFilter + '%');
+        parts.push(`receiver_city=ilike.${r}`);
+      }
+      const filter = parts.length ? parts.join('&') + '&' : '';
+
+      const from = page * PAGE_SIZE;
+      const to   = from + PAGE_SIZE - 1;
+      const url  = `${SUPABASE_URL}/rest/v1/shipments?${filter}select=*&order=created_at.desc`;
+
+      try {
+        const r = await rateLimitedFetch(url, {
+          headers: { ...getHeaders(), 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': `${from}-${to}` },
+        });
+        const range = r.headers.get('Content-Range') || '*/0';
+        totalRows = parseInt(range.split('/')[1] || '0', 10);
+        const rows = await r.json();
+        renderRows(Array.isArray(rows) ? rows : []);
+        renderPaging();
+      } catch (e) {
+        console.error('loadPage', e);
+        toast('Yuklarni olishda xato', false);
+      }
+    }
+
+    function renderRows(rows) {
+      const tbody = $('#tbody');
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">Yuklar topilmadi</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(r => `
+        <tr data-id="${esc(r.id)}">
+          <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${escapeHtml(r.tracking_code)}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(r.sender_city || '—')} <span class="text-slate-400">→</span> ${escapeHtml(r.receiver_city || '—')}</td>
+          <td class="px-4 py-3">${escapeHtml(r.receiver_name || '—')}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(r.receiver_phone || '—')}</td>
+          <td class="px-4 py-3">
+            <select class="status-sel badge badge-${escapeHtml(r.status || 'accepted')}" data-id="${esc(r.id)}">
+              ${Object.keys(STATUS_LABELS).map(s => `
+                <option value="${s}" ${s === r.status ? 'selected' : ''}>${STATUS_LABELS[s]}</option>
+              `).join('')}
+            </select>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(r.weight_kg ?? 0)} kg</td>
+          <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${escapeHtml(fmtDate(r.created_at))}</td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            <button class="del-btn text-red-600 hover:text-red-800 text-xs font-semibold" data-id="${esc(r.id)}" data-code="${esc(r.tracking_code)}">O'chirish</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.status-sel').forEach(sel => {
+        sel.addEventListener('change', (e) => updateStatus(e.target.dataset.id, e.target.value, e.target));
+      });
+      tbody.querySelectorAll('.del-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteRow(btn.dataset.id, btn.dataset.code));
+      });
+    }
+
+    function renderPaging() {
+      const start = totalRows ? page * PAGE_SIZE + 1 : 0;
+      const end   = Math.min(start + PAGE_SIZE - 1, totalRows);
+      $('#page-info').textContent = totalRows ? `${start}–${end} / ${totalRows}` : '0 / 0';
+      $('#prev-page').disabled = page === 0;
+      $('#next-page').disabled = end >= totalRows;
+    }
+
+    async function updateStatus(id, status, sel) {
+      // Validate before PATCH (Part 2.2): id must be numeric, status whitelisted.
+      if (!/^\d+$/.test(String(id)) || !Object.prototype.hasOwnProperty.call(STATUS_LABELS, status)) {
+        toast("Noto'g'ri status", false);
+        return;
+      }
+      try {
+        const r = await rateLimitedFetch(`${SUPABASE_URL}/rest/v1/shipments?id=eq.${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        if (sel) sel.className = 'status-sel badge badge-' + status;
+        toast('Status yangilandi');
+        loadStats();
+      } catch (e) {
+        console.error('updateStatus', e);
+        toast("Xatolik: status yangilanmadi", false);
+      }
+    }
+
+    async function deleteRow(id, code) {
+      if (!/^\d+$/.test(String(id))) return;
+      // Delete confirmation including the tracking code (Part 2.7).
+      if (!confirm(`"${code || id}" ni o'chirmoqchimisiz?`)) return;
+      try {
+        const r = await rateLimitedFetch(`${SUPABASE_URL}/rest/v1/shipments?id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: getHeaders(),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        toast("O'chirildi");
+        loadStats();
+        loadPage();
+      } catch (e) {
+        console.error('deleteRow', e);
+        toast("O'chirib bo'lmadi", false);
+      }
+    }
+
+    /* ────────── Add form ────────── */
+    $('#add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const fd = new FormData(form);
+      const data = {};
+      for (const [k, v] of fd.entries()) {
+        const val = typeof v === 'string' ? v.trim() : v;
+        if (val === '') continue;
+        data[k] = val;
+      }
+
+      // Validate + sanitize before INSERT (Part 2.2).
+      let clean;
+      try {
+        clean = validateShipment(data);
+      } catch (verr) {
+        toast(verr.message, false);
+        return;
+      }
+
+      try {
+        const r = await rateLimitedFetch(`${SUPABASE_URL}/rest/v1/shipments`, {
+          method: 'POST',
+          headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(clean),
+        });
+        if (!r.ok) {
+          const t = await r.text();
+          throw new Error(t || ('HTTP ' + r.status));
+        }
+        toast("Yuk qo'shildi");
+        form.reset();
+        page = 0;
+        loadStats();
+        loadPage();
+      } catch (e) {
+        console.error('add', e);
+        const msg = String(e.message || '');
+        if (msg.includes('duplicate') || msg.includes('unique')) {
+          toast('Bu tracking kod allaqachon mavjud', false);
+        } else {
+          toast('Saqlashda xato', false);
+        }
+      }
+    });
+
+    /* ────────── Search + paging ────────── */
+    let searchTimer;
+    $('#search').addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      const v = e.target.value.trim();
+      searchTimer = setTimeout(() => {
+        searchQuery = v;
+        page = 0;
+        loadPage();
+      }, 200);
+    });
+
+    $('#prev-page').addEventListener('click', () => { if (page > 0) { page--; loadPage(); } });
+    $('#next-page').addEventListener('click', () => { page++; loadPage(); });
+
+    function applyStatusFilter(newStatus) {
+      statusFilter = newStatus || '';
+      const sel = $('#status-filter');
+      if (sel.value !== statusFilter) sel.value = statusFilter;
+      syncTabUI();
+      page = 0;
+      loadPage();
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        applyStatusFilter(TAB_TO_STATUS[btn.dataset.tab] ?? '');
+      });
+    });
+
+    $('#status-filter').addEventListener('change', (e) => {
+      applyStatusFilter(e.target.value);
+    });
+
+    $('#region-filter').addEventListener('change', (e) => {
+      regionFilter = e.target.value;
+      page = 0;
+      loadPage();
+    });
+
+    /* ────────── Excel import ────────── */
+    let selectedFile = null;
+
+    const MAX_IMPORT_BYTES = 5 * 1024 * 1024; // 5MB (Part 2.6)
+    const MAX_IMPORT_ROWS  = 500;             // (Part 2.6)
+
+    $('#excel-file').addEventListener('change', (e) => {
+      selectedFile = e.target.files[0] || null;
+      const statusEl = $('#excel-status');
+      const btn = $('#excel-import-btn');
+      if (!selectedFile) {
+        statusEl.textContent = '';
+        btn.disabled = true;
+        return;
+      }
+      // Reject oversized files up front.
+      if (selectedFile.size > MAX_IMPORT_BYTES) {
+        statusEl.innerHTML = `<span class="text-red-600">Fayl 5MB dan katta bo'lmasin</span>`;
+        selectedFile = null;
+        e.target.value = '';
+        btn.disabled = true;
+        return;
+      }
+      // esc() the filename — file names are attacker-controllable (Part 2.1).
+      statusEl.innerHTML = `<span class="text-slate-700"><b>${esc(selectedFile.name)}</b> tanlandi. "Import qilish" tugmasini bosing.</span>`;
+      btn.disabled = false;
+    });
+
+    $('#excel-import-btn').addEventListener('click', async () => {
+      if (!selectedFile) return;
+      const statusEl = $('#excel-status');
+      const btn = $('#excel-import-btn');
+      const showError = (msg) => {
+        statusEl.innerHTML = `<span class="text-red-600">${msg}</span>`;
+        btn.disabled = false;
+      };
+
+      btn.disabled = true;
+
+      // Defense in depth: re-check size at import time (Part 2.6).
+      if (selectedFile.size > MAX_IMPORT_BYTES) {
+        showError("Fayl 5MB dan katta bo'lmasin");
+        return;
+      }
+
+      let rows;
+      let skipped = 0;
+      try {
+        const buf = await selectedFile.arrayBuffer();
+        const workbook = XLSX.read(buf, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        // Get all rows as arrays
+        const allRows = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: '',
+          raw: false
+        });
+
+        // Find header row containing "Mizoj kodi"
+        let headerIdx = -1;
+        for (let i = 0; i < allRows.length; i++) {
+          const row = allRows[i];
+          if (row.some(c => String(c).trim() === 'Mizoj kodi' || String(c).trim() === 'tracking_code')) {
+            headerIdx = i;
+            break;
+          }
+        }
+
+        if (headerIdx === -1) {
+          showError('Sarlavha topilmadi. "Mizoj kodi" ustuni bo\'lishi kerak.');
+          return;
+        }
+
+        const headers = allRows[headerIdx].map(h => String(h).trim());
+        const dataRows = allRows.slice(headerIdx + 1);
+
+        // Map each row to object
+        rows = dataRows
+          .map(row => {
+            const obj = {};
+            headers.forEach((h, i) => { obj[h] = row[i] ?? ''; });
+            return obj;
+          })
+          .filter(row => {
+            // Skip empty rows and footer rows
+            const code = String(row['Mizoj kodi'] || row['tracking_code'] || '').trim();
+            return code.length > 0 && !String(row['T/r'] || '').includes('Topshirdi');
+          })
+          .map(row => ({
+            tracking_code:  String(row['Mizoj kodi'] || row['tracking_code'] || '').trim().toUpperCase(),
+            receiver_name:  String(row['Kimga (F.I.Sh)'] || row['receiver_name'] || '').trim(),
+            receiver_city:  String(row['Qayerga(manzil)'] || row['Qayerga (manzil)'] || row['receiver_city'] || '').trim(),
+            receiver_phone: String(row['Telfon raqam'] || row['receiver_phone'] || '').trim(),
+            weight_kg:      parseFloat(row['Vazni'] || row['weight_kg'] || 0) || 0,
+            sender_name:    'Ishonch Logistics',
+            sender_city:    'Toshkent',
+            package_type:   'Standart',
+            status:         'accepted',
+            notes:          row['Sana'] ? String(row['Sana']).trim() : ''
+          }));
+
+        // Validate every row's tracking code; skip invalid ones (Part 2.6 + 2.2).
+        const before = rows.length;
+        rows = rows.filter(row => VALID_TRACKING.test(row.tracking_code));
+        skipped = before - rows.length;
+
+        if (rows.length === 0) {
+          showError(skipped ? `Yaroqli qator topilmadi (${skipped} ta o'tkazib yuborildi).` : 'Yaroqli qator topilmadi.');
+          return;
+        }
+
+        // Cap total rows (Part 2.6).
+        if (rows.length > MAX_IMPORT_ROWS) {
+          showError(`Maksimal ${MAX_IMPORT_ROWS} qator (faylda ${rows.length} ta)`);
+          return;
+        }
+      } catch (err) {
+        console.error('parse excel', err);
+        showError("Faylni o'qib bo'lmadi.");
+        return;
+      }
+
+      const skipNote = skipped ? ` (${skipped} ta yaroqsiz tracking o'tkazib yuborildi)` : '';
+      statusEl.innerHTML = `<span class="text-slate-600">${rows.length} ta yuk import qilinmoqda${esc(skipNote)}...</span>`;
+
+      // Bulk insert to Supabase — fall back to per-row on conflict.
+      let ok = 0, fail = 0;
+      const bulk = await rateLimitedFetch(`${SUPABASE_URL}/rest/v1/shipments`, {
+        method: 'POST',
+        headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify(rows),
+      });
+
+      if (bulk.ok) {
+        ok = rows.length;
+      } else {
+        for (const row of rows) {
+          try {
+            const rr = await rateLimitedFetch(`${SUPABASE_URL}/rest/v1/shipments`, {
+              method: 'POST',
+              headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
+              body: JSON.stringify(row),
+            });
+            if (rr.ok) ok++; else fail++;
+          } catch { fail++; }
+        }
+      }
+
+      statusEl.innerHTML = fail === 0
+        ? `<span class="text-emerald-700">${ok} ta yuk muvaffaqiyatli import qilindi${esc(skipNote)}.</span>`
+        : `<span class="text-amber-700">${ok} muvaffaqiyatli, ${fail} xato (takrorlangan tracking yoki yaroqsiz ma'lumot)${esc(skipNote)}.</span>`;
+
+      $('#excel-file').value = '';
+      selectedFile = null;
+      btn.disabled = true;
+      loadStats();
+      loadPage();
+    });
+
+    /* ────────── Session timeout (Part 2.8) ────────── */
+    let lastActivity = Date.now();
+    document.addEventListener('click',   () => { lastActivity = Date.now(); });
+    document.addEventListener('keydown', () => { lastActivity = Date.now(); });
+    setInterval(() => {
+      if (sessionStorage.getItem('admin_logged_in') === 'true' &&
+          Date.now() - lastActivity > SESSION_TIMEOUT_MS) {
+        alert("Sessiya tugadi. Qayta kiring.");
+        logout();
+      }
+    }, 60000);
+
+    /* ────────── Login wiring (Part 1) ────────── */
+    const loginBtn = document.getElementById('login-btn');
+    const userInput = document.getElementById('login-username');
+    const passInput = document.getElementById('login-password');
+
+    loginBtn.addEventListener('click', doLogin);
+    [userInput, passInput].forEach(el => {
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doLogin(); } });
+    });
+
+    // Show/hide password toggle.
+    document.getElementById('toggle-pass').addEventListener('click', () => {
+      const showing = passInput.type === 'text';
+      passInput.type = showing ? 'password' : 'text';
+      document.getElementById('eye-open').style.display   = showing ? '' : 'none';
+      document.getElementById('eye-closed').style.display = showing ? 'none' : '';
+      passInput.focus();
+    });
+
+    /* ────────── Init ────────── */
+    // Only reveal the panel (and fetch data) if a valid session already exists.
+    if (sessionStorage.getItem('admin_logged_in') === 'true') {
+      showMainContent();
+    } else {
+      userInput.focus();
+    }
+  </script>
+
+</body>
+</html>
