@@ -1,0 +1,34 @@
+# Render.com deployment for Ishonch Logistics.
+#
+#   • ishonch-uzpost-proxy : web service — CORS proxy in front of UzPost,
+#                            consumed by track.html at /track?code=...
+#   • ishonch-courier-bot  : background worker — the Telegram courier bot.
+#
+# NOTE: background workers require a paid Render plan; the free plan only
+# covers web services. Set TELEGRAM_TOKEN in the dashboard (sync:false) so the
+# bot token is not stored in this file.
+services:
+  - type: web
+    name: ishonch-uzpost-proxy
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn proxy:app --bind 0.0.0.0:$PORT --workers 2 --timeout 30
+    healthCheckPath: /
+    envVars:
+      - key: ALLOWED_ORIGIN
+        value: "*"
+      - key: PYTHON_VERSION
+        value: "3.13.0"
+
+  - type: worker
+    name: ishonch-courier-bot
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.13.0"

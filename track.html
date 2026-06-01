@@ -197,8 +197,12 @@
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
+        // Call our own CORS proxy instead of UzPost directly (browser CORS).
+        const PROXY_URL = window.location.hostname === 'localhost'
+          ? 'http://localhost:10000/track'
+          : `https://${window.location.hostname}/track`;
         const res = await fetch(
-          `${UZPOST_URL}/${encodeURIComponent(code)}`,
+          `${PROXY_URL}?code=${encodeURIComponent(code)}`,
           { headers: { 'Accept': 'application/json' }, signal: controller.signal }
         );
         clearTimeout(timeout);
