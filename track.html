@@ -160,6 +160,15 @@
     const SUPABASE_KEY = 'sb_publishable_pjDSopKeZlYFqToEBDrvLw_Q7QO_IOd';
     const UZPOST_URL   = 'https://prodapi.pochta.uz/api/v1/public/order';
 
+    // Backend base URL for the UzPost CORS proxy (proxy.py).
+    // In production proxy.py also serves track.html/admin.html, so this is the
+    // same Render domain. ⚠️ Replace with your ACTUAL Render web-service URL if
+    // it differs from the service name in render.yaml.
+    const RENDER_PROXY = 'https://ishonch-uzpost-proxy.onrender.com';
+    const PROXY_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:10000'
+      : RENDER_PROXY;
+
     async function trackShipment(trackingCode) {
       const code = trackingCode.trim().toUpperCase();
 
@@ -198,11 +207,8 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
         // Call our own CORS proxy instead of UzPost directly (browser CORS).
-        const PROXY_URL = window.location.hostname === 'localhost'
-          ? 'http://localhost:10000/track'
-          : `https://${window.location.hostname}/track`;
         const res = await fetch(
-          `${PROXY_URL}?code=${encodeURIComponent(code)}`,
+          `${PROXY_BASE}/track?code=${encodeURIComponent(code)}`,
           { headers: { 'Accept': 'application/json' }, signal: controller.signal }
         );
         clearTimeout(timeout);

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Ishonch Logistics — UzPost tracking CORS proxy.
+"""Ishonch Logistics — UzPost tracking CORS proxy + static file server.
 
-The UzPost public API (prodapi.pochta.uz) does not send CORS headers, so the
-browser cannot call it directly from track.html. This tiny Flask service sits
-in front of it: the frontend calls `/track?code=XXXX`, we fetch the upstream
-order server-side and return its JSON with permissive CORS headers.
+Two jobs, one Render web service:
+
+  1. /track?code=XXXX  — proxies the UzPost public API server-side (it sends no
+     CORS headers, so the browser can't call it directly) and returns the JSON
+     with permissive CORS headers.
+  2. everything else   — serves the static frontend (index.html, admin.html,
+     track.html, css, jsx, images). This puts the site and the API on the SAME
+     Render domain, so track.html can reach /track without cross-origin issues.
 
 Run locally:   python proxy.py            # listens on :10000
 Run on Render: gunicorn proxy:app --bind 0.0.0.0:$PORT
@@ -14,18 +18,30 @@ import os
 import re
 
 import httpx
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, abort, jsonify, request, send_from_directory
 
 UZPOST_URL = "https://prodapi.pochta.uz/api/v1/public/order"
 
 # Restrict to your site's origin in production by setting ALLOWED_ORIGIN.
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 
-# Tracking codes: letters, digits and hyphens only (max 50). Mirrors the
-# VALID_TRACKING check used in admin.html / track.html.
+# Tracking codes: letters, digits and hyphens only (max 50).
 VALID_TRACKING = re.compile(r"^[A-Z0-9\-]{1,50}$")
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Only these extensions may be served as static files. This is a security
+# boundary: it prevents the source of bot.py / proxy.py / main.py, setup.sql,
+# render.yaml, requirements.txt, etc. (which sit in the same directory) from
+# being downloaded — they would leak the bot token and other internals.
+STATIC_EXTS = {
+    ".html", ".css", ".js", ".jsx", ".map", ".json",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+    ".woff", ".woff2", ".ttf",
+}
+
+# static_folder=None: we handle static serving ourselves with the whitelist.
+app = Flask(__name__, static_folder=None)
 
 
 def _cors(resp):
@@ -36,11 +52,7 @@ def _cors(resp):
     return resp
 
 
-@app.route("/", methods=["GET"])
-def health():
-    return _cors(jsonify({"status": "ok", "service": "ishonch-uzpost-proxy"}))
-
-
+# ───────────────────────── UzPost proxy API ─────────────────────────
 @app.route("/track", methods=["GET", "OPTIONS"])
 def track():
     if request.method == "OPTIONS":
@@ -61,14 +73,41 @@ def track():
     except httpx.RequestError:
         return _cors(jsonify({"error": "upstream unreachable"})), 502
 
-    # Pass the upstream body and status straight through (incl. 404), but with
-    # our CORS headers attached so the browser accepts the response.
+    # Pass the upstream body and status straight through (incl. 404), with our
+    # CORS headers attached so the browser accepts the response.
     resp = Response(
         upstream.content,
         status=upstream.status_code,
         mimetype=upstream.headers.get("Content-Type", "application/json"),
     )
     return _cors(resp)
+
+
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    return _cors(jsonify({"status": "ok", "service": "ishonch-uzpost-proxy"}))
+
+
+# ───────────────────────── Static frontend ─────────────────────────
+def _send_static(filename):
+    _, ext = os.path.splitext(filename)
+    if ext.lower() not in STATIC_EXTS:
+        abort(404)
+    full = os.path.normpath(os.path.join(BASE_DIR, filename))
+    # Guard against path traversal escaping BASE_DIR.
+    if not full.startswith(BASE_DIR + os.sep) or not os.path.isfile(full):
+        abort(404)
+    return send_from_directory(BASE_DIR, filename)
+
+
+@app.route("/", methods=["GET"])
+def index():
+    return send_from_directory(BASE_DIR, "index.html")
+
+
+@app.route("/<path:filename>", methods=["GET"])
+def static_files(filename):
+    return _send_static(filename)
 
 
 if __name__ == "__main__":
