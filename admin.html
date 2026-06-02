@@ -266,12 +266,13 @@
           <input name="receiver_city"  placeholder="Qabul qiluvchi shahar"  class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg" />
 
           <input name="weight_kg" type="number" step="0.01" min="0" placeholder="Og'irlik (kg)" class="px-3 py-2 border border-slate-300 rounded-lg" />
-          <select name="package_type" class="px-3 py-2 border border-slate-300 rounded-lg bg-white">
+          <select name="package_type" id="package-type-select" class="px-3 py-2 border border-slate-300 rounded-lg bg-white">
+            <option value="Bir Qadam - Qopsiz">Bir Qadam - Qopsiz</option>
+            <option value="Bir Qadam - Qopli">Bir Qadam - Qopli</option>
+            <option value="Kuryerlik xizmati">Kuryerlik xizmati</option>
             <option value="Standart">Standart</option>
-            <option value="Hujjat">Hujjat</option>
-            <option value="Posilka">Posilka</option>
-            <option value="Mo'rt yuk">Mo'rt yuk</option>
-            <option value="Yirik yuk">Yirik yuk</option>
+            <option value="Xat">Xat</option>
+            <option value="Boshqa">Boshqa</option>
           </select>
 
           <select name="status" class="col-span-2 px-3 py-2 border border-slate-300 rounded-lg bg-white">
@@ -341,6 +342,14 @@
             <option value="Navoiy">Navoiy</option>
             <option value="Andijon">Andijon</option>
           </select>
+          <select id="type-filter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+            <option value="">Barcha turlar</option>
+            <option value="Bir Qadam - Qopsiz">⚡ Bir Qadam - Qopsiz</option>
+            <option value="Bir Qadam - Qopli">⚡ Bir Qadam - Qopli</option>
+            <option value="Kuryerlik xizmati">🛵 Kuryerlik xizmati</option>
+            <option value="Standart">📦 Standart</option>
+            <option value="Xat">✉️ Xat</option>
+          </select>
         </div>
       </div>
 
@@ -353,6 +362,7 @@
               <th class="text-left px-4 py-3 whitespace-nowrap">Qabul qiluvchi</th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Telefon</th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Status</th>
+              <th class="text-left px-4 py-3 whitespace-nowrap">Turi</th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Og'irlik</th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Sana</th>
               <th class="text-right px-4 py-3 whitespace-nowrap">Amallar</th>
@@ -512,6 +522,7 @@
     let searchQuery = '';
     let statusFilter = '';
     let regionFilter = '';
+    let typeFilter = '';
     let totalRows = 0;
 
     // Map between tab key and the status value it selects.
@@ -708,13 +719,24 @@
         else typeStats[type].other++;
       });
 
+      const typeIcons = {
+        'Bir Qadam - Qopsiz': '⚡',
+        'Bir Qadam - Qopli':  '⚡',
+        'Kuryerlik xizmati':  '🛵',
+        'Standart':           '📦',
+        'Xat':                '✉️',
+        'Boshqa':             '📫',
+      };
+
       // Render each type as a card
       const typeCards = Object.entries(typeStats)
         .sort((a, b) => b[1].total - a[1].total)
-        .map(([type, s]) => `
+        .map(([type, s]) => {
+          const icon = typeIcons[type] || '📦';
+          return `
           <div style="background:#F4F7FB; border-radius:10px; padding:14px 18px; margin-bottom:10px; border-left:4px solid #0A2472;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <span style="font-weight:700; color:#0A2472; font-size:15px;">📦 ${esc(type)}</span>
+              <span style="font-weight:700; color:#0A2472; font-size:15px;">${icon} ${esc(type)}</span>
               <span style="background:#0A2472; color:white; border-radius:999px; padding:3px 12px; font-size:13px; font-weight:700;">${s.total} ta</span>
             </div>
             <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center;">
@@ -738,7 +760,8 @@
               Yetkazish: ${s.total ? Math.round(s.delivered/s.total*100) : 0}%
             </div>
           </div>
-        `).join('');
+        `;
+        }).join('');
 
       const card = (label, value, color) => `
         <div class="bg-slate-50 rounded-lg p-4 text-center border border-slate-200">
@@ -828,6 +851,9 @@
         const r = encodeURIComponent('%' + regionFilter + '%');
         parts.push(`receiver_city=ilike.${r}`);
       }
+      if (typeFilter) {
+        parts.push(`package_type=eq.${encodeURIComponent(typeFilter)}`);
+      }
       const filter = parts.length ? parts.join('&') + '&' : '';
 
       const from = page * PAGE_SIZE;
@@ -852,7 +878,7 @@
     function renderRows(rows) {
       const tbody = $('#tbody');
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">Yuklar topilmadi</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-12 text-center text-slate-400">Yuklar topilmadi</td></tr>`;
         return;
       }
       tbody.innerHTML = rows.map(r => `
@@ -868,6 +894,7 @@
               `).join('')}
             </select>
           </td>
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(r.package_type || '—')}</td>
           <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(r.weight_kg ?? 0)} kg</td>
           <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${escapeHtml(fmtDate(r.created_at))}</td>
           <td class="px-4 py-3 text-right whitespace-nowrap">
@@ -1016,6 +1043,12 @@
 
     $('#region-filter').addEventListener('change', (e) => {
       regionFilter = e.target.value;
+      page = 0;
+      loadPage();
+    });
+
+    $('#type-filter').addEventListener('change', (e) => {
+      typeFilter = e.target.value;
       page = 0;
       loadPage();
     });
