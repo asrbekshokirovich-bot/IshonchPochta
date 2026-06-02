@@ -635,7 +635,7 @@
       const end = nextMonth + '-01T00:00:00.000Z';
 
       const res = await rateLimitedFetch(
-        `${SUPABASE_URL}/rest/v1/shipments?created_at=gte.${start}&created_at=lt.${end}&select=status,receiver_city,package_type&order=created_at.desc`,
+        `${SUPABASE_URL}/rest/v1/shipments?created_at=gte.${start}&created_at=lt.${end}&select=status,receiver_city,package_type,tracking_code,weight_kg&order=created_at.desc`,
         { headers: getHeaders() }
       );
       return await res.json();
@@ -694,13 +694,51 @@
       if (restCount > 0) regionRows.push(['Boshqa', restCount]);
       const maxRegion = regionRows.reduce((m, [, n]) => Math.max(m, n), 0) || 1;
 
-      // Package type counts
-      const byType = {};
-      for (const r of rows) {
-        const k = String(r.package_type || 'Standart').trim() || 'Standart';
-        byType[k] = (byType[k] || 0) + 1;
-      }
-      const typeEntries = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+      // Group by package_type with status breakdown
+      const typeStats = {};
+      rows.forEach(r => {
+        const type = r.package_type || 'Standart';
+        if (!typeStats[type]) {
+          typeStats[type] = { total: 0, delivered: 0, in_transit: 0, accepted: 0, other: 0 };
+        }
+        typeStats[type].total++;
+        if (r.status === 'delivered') typeStats[type].delivered++;
+        else if (r.status === 'in_transit' || r.status === 'out_for_delivery' || r.status === 'picked_up') typeStats[type].in_transit++;
+        else if (r.status === 'accepted' || r.status === 'created') typeStats[type].accepted++;
+        else typeStats[type].other++;
+      });
+
+      // Render each type as a card
+      const typeCards = Object.entries(typeStats)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([type, s]) => `
+          <div style="background:#F4F7FB; border-radius:10px; padding:14px 18px; margin-bottom:10px; border-left:4px solid #0A2472;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <span style="font-weight:700; color:#0A2472; font-size:15px;">📦 ${esc(type)}</span>
+              <span style="background:#0A2472; color:white; border-radius:999px; padding:3px 12px; font-size:13px; font-weight:700;">${s.total} ta</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center;">
+              <div style="background:#FFF8E1; border-radius:8px; padding:8px;">
+                <div style="font-size:18px; font-weight:800; color:#8A6000;">${s.accepted}</div>
+                <div style="font-size:11px; color:#8A6000;">Qabul qilindi</div>
+              </div>
+              <div style="background:#E6F1FB; border-radius:8px; padding:8px;">
+                <div style="font-size:18px; font-weight:800; color:#0A2472;">${s.in_transit}</div>
+                <div style="font-size:11px; color:#0A2472;">Yo'lda</div>
+              </div>
+              <div style="background:#E6F4EA; border-radius:8px; padding:8px;">
+                <div style="font-size:18px; font-weight:800; color:#1B7F3A;">${s.delivered}</div>
+                <div style="font-size:11px; color:#1B7F3A;">Yetkazildi</div>
+              </div>
+            </div>
+            <div style="margin-top:10px; background:#E1E7F0; border-radius:4px; height:8px;">
+              <div style="background:#1B7F3A; border-radius:4px; height:8px; width:${s.total ? Math.round(s.delivered/s.total*100) : 0}%; transition:width 0.5s;"></div>
+            </div>
+            <div style="font-size:11px; color:#6A748A; margin-top:4px; text-align:right;">
+              Yetkazish: ${s.total ? Math.round(s.delivered/s.total*100) : 0}%
+            </div>
+          </div>
+        `).join('');
 
       const card = (label, value, color) => `
         <div class="bg-slate-50 rounded-lg p-4 text-center border border-slate-200">
@@ -715,12 +753,6 @@
           <div class="w-16 shrink-0 text-right text-sm font-semibold text-navy">${n} ta</div>
         </div>`).join('') : `<div class="text-sm text-slate-400">Ma'lumot yo'q</div>`;
 
-      const typeHtml = typeEntries.length ? typeEntries.map(([name, n]) => `
-        <div class="flex items-center justify-between text-sm py-1 border-b border-slate-100 last:border-0">
-          <span class="text-slate-700">${escapeHtml(name)}</span>
-          <span class="font-semibold text-navy">${n} ta</span>
-        </div>`).join('') : `<div class="text-sm text-slate-400">Ma'lumot yo'q</div>`;
-
       report.innerHTML = `
         <h3 class="text-lg font-bold text-navy mb-4">📅 ${escapeHtml(fmtYearMonth(ym))} — Oylik hisobot</h3>
 
@@ -731,15 +763,14 @@
           ${card('Yetkazildi', delivered, 'text-emerald-700')}
         </div>
 
-        <div class="grid md:grid-cols-2 gap-6">
-          <div>
-            <div class="font-semibold text-slate-700 mb-3">📍 Viloyatlar bo'yicha:</div>
-            ${regionHtml}
-          </div>
-          <div>
-            <div class="font-semibold text-slate-700 mb-3">📦 Yuk turlari:</div>
-            ${typeHtml}
-          </div>
+        <div>
+          <div class="font-semibold text-slate-700 mb-3">📍 Viloyatlar bo'yicha:</div>
+          ${regionHtml}
+        </div>
+
+        <div style="margin-top:20px;">
+          <h4 style="font-size:14px; font-weight:700; color:#6A748A; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">📦 Yuk turlari bo'yicha</h4>
+          ${typeCards || '<p style="color:#6A748A;">Ma\'lumot yo\'q</p>'}
         </div>`;
     }
 
