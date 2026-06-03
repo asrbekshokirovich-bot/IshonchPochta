@@ -25,7 +25,8 @@ from telegram.ext import (
 )
 
 # ───────────────────────── Config ─────────────────────────
-TOKEN = "8996511571:AAGRTtb-iPsltBqZ-XX2yGwBCXfVcs7PSy8"
+# Token for @logistics_suppost_bot
+TOKEN = "8974997357:AAGsVVwBlb7uLJepzjc0HTdBCG3eM1x6YLA"
 
 SUPABASE_URL = "https://dhqzairyxzoppskzpzxr.supabase.co"
 SUPABASE_KEY = "sb_publishable_pjDSopKeZlYFqToEBDrvLw_Q7QO_IOd"
