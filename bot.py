@@ -31,6 +31,8 @@ SUPABASE_URL = "https://dhqzairyxzoppskzpzxr.supabase.co"
 SUPABASE_KEY = "sb_publishable_pjDSopKeZlYFqToEBDrvLw_Q7QO_IOd"
 STORAGE_BUCKET = "shipment-photos"
 
+ADMIN_CHAT_ID = 5775836728
+
 SUPABASE_HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -555,6 +557,40 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def handle_support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
+    user = update.effective_user
+    text = update.message.text
+
+    # Send to admin
+    try:
+        await ctx.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=(
+                f"📨 *Yangi xabar (Support)*\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 Ism: {user.full_name}\n"
+                f"🔗 Username: @{user.username or 'yoq'}\n"
+                f"🆔 ID: {user.id}\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"💬 *Xabar:*\n{text}"
+            ),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Admin forward error: {e}")
+
+    # Reply to user
+    await update.message.reply_text(
+        "✅ Xabaringiz qabul qilindi!\n\n"
+        "Ishonch Logistics xodimi tez orada siz bilan bog'lanadi. 🙏\n\n"
+        "Kuryer bo'lsangiz /start bosing."
+    )
+
+
 # ─────────────────────────── Main ─────────────────────────
 def main():
     app = Application.builder().token(TOKEN).build()
@@ -575,6 +611,8 @@ def main():
         name="courier_conv",
     )
     app.add_handler(conv)
+    from telegram.ext import MessageHandler as MH, filters as F
+    app.add_handler(MH(F.TEXT & ~F.COMMAND, handle_support))
     log.info("Bot starting…")
     app.run_polling(
         drop_pending_updates=True,
