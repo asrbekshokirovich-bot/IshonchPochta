@@ -598,8 +598,7 @@ async def handle_support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     # Reply to user
     await update.message.reply_text(
         "✅ Xabaringiz qabul qilindi!\n\n"
-        "Ishonch Logistics xodimi tez orada siz bilan bog'lanadi. 🙏\n\n"
-        "Kuryer bo'lsangiz /start bosing."
+        "Ishonch Logistics xodimi tez orada siz bilan bog'lanadi. 🙏"
     )
 
 
