@@ -562,8 +562,19 @@ async def handle_support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
 
+    # Skip if user is in an active conversation state
+    if ctx.user_data and ctx.user_data.get('in_conversation'):
+        return
+
+    # Also skip if text looks like a courier login attempt
+    # (short text that could be username/password)
+    text = update.message.text.strip()
+
+    # Skip /start and other commands
+    if text.startswith('/'):
+        return
+
     user = update.effective_user
-    text = update.message.text
 
     # Send to admin
     try:
@@ -597,6 +608,8 @@ def main():
     app = Application.builder().token(TOKEN).build()
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
+        per_user=True,
+        per_chat=True,
         states={
             AWAIT_USERNAME:      [MessageHandler(filters.TEXT & ~filters.COMMAND, got_username)],
             AWAIT_PASSWORD:      [MessageHandler(filters.TEXT & ~filters.COMMAND, got_password)],
