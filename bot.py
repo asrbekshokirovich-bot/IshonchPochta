@@ -576,7 +576,11 @@ def main():
     )
     app.add_handler(conv)
     log.info("Bot starting…")
-    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES,
+        stop_signals=[],
+    )
 
 
 if __name__ == "__main__":
