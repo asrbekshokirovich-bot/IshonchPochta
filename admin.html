@@ -87,51 +87,7 @@
     .tab-btn.active { background: #0A2472; color: #fff; }
     .tab-btn .tab-count { font-size: 12px; opacity: 0.85; font-weight: 700; }
 
-    /* ───────── Login overlay (Part 1) ───────── */
-    #login-overlay {
-      position: fixed; inset: 0; z-index: 1000;
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
-      background: linear-gradient(135deg, #0A2472 0%, #081e60 55%, #378ADD 140%);
-    }
-    #login-overlay.hidden { display: none; }
-    .login-card {
-      width: 100%; max-width: 380px;
-      background: #fff; border-radius: 18px;
-      padding: 32px 28px;
-      box-shadow: 0 24px 60px rgba(8,30,96,0.35);
-      text-align: center;
-    }
-    .login-card img { height: 60px; width: auto; margin: 0 auto 14px; display: block; }
-    .login-card h1 { font-size: 20px; font-weight: 800; color: #0A2472; margin-bottom: 22px; }
-    .login-field { position: relative; margin-bottom: 14px; text-align: left; }
-    .login-field .ico {
-      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-      color: #94a3b8; pointer-events: none; width: 18px; height: 18px;
-    }
-    .login-field input {
-      width: 100%; padding: 11px 12px 11px 38px;
-      border: 1.5px solid #cbd5e1; border-radius: 10px;
-      font-size: 14px; background: #fff;
-    }
-    .login-field input.has-toggle { padding-right: 42px; }
-    .login-field .toggle-pass {
-      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-      background: none; border: 0; cursor: pointer; padding: 6px;
-      color: #64748b; line-height: 0;
-    }
-    .login-field .toggle-pass:hover { color: #0A2472; }
-    #login-btn {
-      width: 100%; padding: 12px; margin-top: 4px;
-      background: #0A2472; color: #fff; font-weight: 700; font-size: 15px;
-      border: 0; border-radius: 10px; cursor: pointer;
-      transition: background .15s ease;
-    }
-    #login-btn:hover { background: #081e60; }
-    #login-error {
-      min-height: 20px; margin-top: 12px;
-      color: #dc2626; font-size: 13px; font-weight: 600;
-    }
+    /* Login styles live inline on #login-screen (Part 1) */
     .logout-btn {
       padding: 6px 14px; border-radius: 8px;
       background: #fee2e2; color: #b91c1c;
@@ -143,28 +99,184 @@
 </head>
 <body class="bg-slate-50 text-slate-800 locked">
 
-  <!-- ───────── Login overlay (Part 1) ───────── -->
-  <div id="login-overlay">
-    <div class="login-card">
-      <img src="assets/ishonch-logo-full.png" alt="Ishonch Logistics" />
-      <h1>🔐 Admin Panel</h1>
+  <!-- ───────── Login screen (Part 1) ───────── -->
+  <style>
+  @media (max-width: 768px) {
+    #login-screen > div:first-child { display: none !important; }
+    #login-screen > div:last-child { width: 100% !important; }
+  }
+  </style>
+  <div id="login-screen" style="
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  ">
+    <!-- LEFT SIDE — branded panel -->
+    <div style="
+      flex: 1;
+      background: linear-gradient(145deg, #07173a 0%, #0A2472 50%, #1A5FAA 100%);
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 60px; position: relative; overflow: hidden;
+    ">
+      <!-- decorative circles -->
+      <div style="position:absolute;width:400px;height:400px;border-radius:50%;background:rgba(255,255,255,0.03);top:-100px;right:-100px;"></div>
+      <div style="position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,0.04);bottom:-80px;left:-80px;"></div>
+      <div style="position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(91,184,245,0.08);top:40%;right:10%;"></div>
 
-      <div class="login-field">
-        <svg class="ico" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg>
-        <input id="login-username" type="text" autocomplete="username" placeholder="Foydalanuvchi nomi" maxlength="64" />
+      <!-- Logo -->
+      <img src="assets/ishonch-logo-full.png?v=2" alt="Ishonch Logistics"
+           style="height:70px;width:auto;margin-bottom:40px;filter:brightness(0) invert(1);position:relative;z-index:1;" />
+
+      <!-- Tagline -->
+      <h1 style="
+        color:white; font-size:32px; font-weight:800;
+        text-align:center; margin:0 0 16px; line-height:1.2;
+        position:relative;z-index:1;
+      ">Ishonch har bir<br>yetkazishda</h1>
+
+      <p style="
+        color:rgba(255,255,255,0.6); font-size:15px;
+        text-align:center; max-width:320px; line-height:1.6;
+        position:relative;z-index:1; margin:0 0 48px;
+      ">O'zbekiston bo'ylab ishonchli yetkazib berish xizmati</p>
+
+      <!-- Stats -->
+      <div style="
+        display:flex; gap:40px; position:relative;z-index:1;
+      ">
+        <div style="text-align:center;">
+          <div style="color:white;font-size:28px;font-weight:800;">14</div>
+          <div style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:4px;">VILOYAT</div>
+        </div>
+        <div style="width:1px;background:rgba(255,255,255,0.15);"></div>
+        <div style="text-align:center;">
+          <div style="color:white;font-size:28px;font-weight:800;">180+</div>
+          <div style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:4px;">BEKAT</div>
+        </div>
+        <div style="width:1px;background:rgba(255,255,255,0.15);"></div>
+        <div style="text-align:center;">
+          <div style="color:white;font-size:28px;font-weight:800;">24h</div>
+          <div style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:4px;">YETKAZISH</div>
+        </div>
       </div>
+    </div>
 
-      <div class="login-field">
-        <svg class="ico" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 10V7a4 4 0 00-8 0v3M5 10h14a1 1 0 011 1v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8a1 1 0 011-1z"/></svg>
-        <input id="login-password" type="password" autocomplete="current-password" class="has-toggle" placeholder="Parol" maxlength="128" />
-        <button type="button" class="toggle-pass" id="toggle-pass" aria-label="Parolni ko'rsatish">
-          <svg id="eye-open" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          <svg id="eye-closed" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="display:none"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2M9.9 4.9A9.8 9.8 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.1 3.9M6.1 6.1A17 17 0 002 12s3.5 7 10 7a9.8 9.8 0 003.1-.5"/></svg>
-        </button>
+    <!-- RIGHT SIDE — login form -->
+    <div style="
+      width: 480px; background: #F4F7FB;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 60px 48px;
+    ">
+      <div style="width:100%;max-width:360px;">
+
+        <!-- Form header -->
+        <div style="margin-bottom:36px;">
+          <div style="
+            width:52px;height:52px;border-radius:14px;
+            background:linear-gradient(135deg,#0A2472,#1A5FAA);
+            display:flex;align-items:center;justify-content:center;
+            margin-bottom:20px;font-size:24px;
+          ">🔐</div>
+          <h2 style="margin:0 0 8px;color:#0A2472;font-size:26px;font-weight:800;">Xush kelibsiz</h2>
+          <p style="margin:0;color:#6A748A;font-size:14px;">Admin panelga kirish uchun ma'lumotlarni kiriting</p>
+        </div>
+
+        <!-- Username -->
+        <div style="margin-bottom:16px;">
+          <label style="
+            display:block;font-size:12px;font-weight:700;
+            color:#6A748A;text-transform:uppercase;letter-spacing:0.8px;
+            margin-bottom:8px;
+          ">Username</label>
+          <div style="position:relative;">
+            <span style="
+              position:absolute;left:14px;top:50%;transform:translateY(-50%);
+              font-size:16px;
+            ">👤</span>
+            <input id="login-username" type="text" autocomplete="username" maxlength="64" placeholder="admin"
+              style="
+                width:100%;padding:14px 14px 14px 44px;
+                border:2px solid #E1E7F0;border-radius:12px;
+                font-size:15px;color:#1B2440;background:white;
+                outline:none;box-sizing:border-box;
+                transition:border-color 0.2s,box-shadow 0.2s;
+              "
+              onfocus="this.style.borderColor='#378ADD';this.style.boxShadow='0 0 0 4px rgba(55,138,221,0.12)'"
+              onblur="this.style.borderColor='#E1E7F0';this.style.boxShadow='none'"
+            />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div style="margin-bottom:24px;">
+          <label style="
+            display:block;font-size:12px;font-weight:700;
+            color:#6A748A;text-transform:uppercase;letter-spacing:0.8px;
+            margin-bottom:8px;
+          ">Parol</label>
+          <div style="position:relative;">
+            <span style="
+              position:absolute;left:14px;top:50%;transform:translateY(-50%);
+              font-size:16px;
+            ">🔒</span>
+            <input id="login-password" type="password" autocomplete="current-password" maxlength="128" placeholder="••••••••"
+              style="
+                width:100%;padding:14px 48px 14px 44px;
+                border:2px solid #E1E7F0;border-radius:12px;
+                font-size:15px;color:#1B2440;background:white;
+                outline:none;box-sizing:border-box;
+                transition:border-color 0.2s,box-shadow 0.2s;
+              "
+              onfocus="this.style.borderColor='#378ADD';this.style.boxShadow='0 0 0 4px rgba(55,138,221,0.12)'"
+              onblur="this.style.borderColor='#E1E7F0';this.style.boxShadow='none'"
+            />
+            <button id="toggle-pass" type="button" onclick="toggleLoginPass()"
+              style="
+                position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                background:none;border:none;cursor:pointer;font-size:18px;
+                color:#6A748A;padding:4px;
+              ">👁</button>
+          </div>
+        </div>
+
+        <!-- Error message -->
+        <div id="login-error" style="
+          display:none;background:#FCEBEB;border:1px solid #F09595;
+          border-radius:10px;padding:12px 16px;margin-bottom:16px;
+          color:#A32D2D;font-size:13px;font-weight:600;
+        "></div>
+
+        <!-- Rate limit error -->
+        <div id="login-limit" style="
+          display:none;background:#FFF8E1;border:1px solid #FFD54F;
+          border-radius:10px;padding:12px 16px;margin-bottom:16px;
+          color:#8A6000;font-size:13px;font-weight:600;
+        ">⚠️ Juda ko'p urinish. Sahifani yangilang.</div>
+
+        <!-- Login button -->
+        <button id="login-btn" type="button"
+          style="
+            width:100%;padding:15px;
+            background:linear-gradient(135deg,#0A2472,#1A5FAA);
+            color:white;border:none;border-radius:12px;
+            font-size:15px;font-weight:700;cursor:pointer;
+            transition:opacity 0.2s,transform 0.1s;
+            box-shadow:0 4px 14px rgba(10,36,114,0.3);
+          "
+          onmouseover="this.style.opacity='0.92'"
+          onmouseout="this.style.opacity='1'"
+          onmousedown="this.style.transform='scale(0.98)'"
+          onmouseup="this.style.transform='scale(1)'"
+        >Kirish →</button>
+
+        <!-- Footer note -->
+        <p style="
+          margin:24px 0 0;text-align:center;
+          color:#B6C0D6;font-size:12px;
+        ">© 2025 Ishonch Logistics</p>
       </div>
-
-      <button id="login-btn" type="button">Kirish</button>
-      <div id="login-error"></div>
     </div>
   </div>
 
@@ -491,11 +603,23 @@
 
     function showLoginError(msg) {
       const el = document.getElementById('login-error');
-      if (el) el.textContent = msg;
+      if (el) { el.textContent = msg; el.style.display = 'block'; }
+    }
+
+    function toggleLoginPass() {
+      const inp = document.getElementById('login-password');
+      const btn = document.getElementById('toggle-pass');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        btn.textContent = '🙈';
+      } else {
+        inp.type = 'password';
+        btn.textContent = '👁';
+      }
     }
 
     function showMainContent() {
-      document.getElementById('login-overlay').classList.add('hidden');
+      document.getElementById('login-screen').style.display = 'none';
       document.body.classList.remove('locked');
       lastActivity = Date.now();
       // Data is only ever fetched AFTER authentication.
@@ -516,7 +640,8 @@
       // Rate limiting — max 5 attempts
       const attempts = parseInt(sessionStorage.getItem("login_attempts") || "0", 10);
       if (attempts >= MAX_ATTEMPTS) {
-        showLoginError("Juda ko'p urinish. Sahifani yangilang.");
+        const limitEl = document.getElementById('login-limit');
+        if (limitEl) limitEl.style.display = 'block';
         return;
       }
 
@@ -1380,14 +1505,7 @@
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doLogin(); } });
     });
 
-    // Show/hide password toggle.
-    document.getElementById('toggle-pass').addEventListener('click', () => {
-      const showing = passInput.type === 'text';
-      passInput.type = showing ? 'password' : 'text';
-      document.getElementById('eye-open').style.display   = showing ? '' : 'none';
-      document.getElementById('eye-closed').style.display = showing ? 'none' : '';
-      passInput.focus();
-    });
+    // Show/hide password toggle handled inline via toggleLoginPass().
 
     /* ────────── Init ────────── */
     // Only reveal the panel (and fetch data) if a valid session already exists.
