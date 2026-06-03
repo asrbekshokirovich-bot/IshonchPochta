@@ -6,7 +6,7 @@ import bot
 # Override token from environment if set
 _token = os.environ.get("TELEGRAM_TOKEN") or os.environ.get("BOT_TOKEN")
 if _token:
-    bot.BOT_TOKEN = _token
+    bot.TOKEN = _token
 
 def run_bot():
     bot.main()
