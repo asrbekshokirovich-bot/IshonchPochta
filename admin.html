@@ -230,6 +230,65 @@
       </div>
     </section>
 
+    <!-- Delivery price calculator -->
+    <div class="calc-section" style="background:white; border-radius:14px; box-shadow:0 4px 18px rgba(10,36,114,0.08); padding:24px 28px; margin-bottom:20px;">
+      <h3 style="margin:0 0 18px; color:#0A2472; font-size:16px; font-weight:700;">
+        🧮 Yetkazib berish narxini hisoblash
+      </h3>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end;">
+
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:#6A748A; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px;">
+            Og'irlik (kg)
+          </label>
+          <input
+            id="calc-weight"
+            type="number"
+            min="0.1"
+            max="9999"
+            step="0.1"
+            placeholder="masalan: 2.5"
+            style="width:100%; padding:11px 14px; border:1.5px solid #E1E7F0; border-radius:10px; font-size:15px; outline:none; color:#1B2440;"
+            oninput="calcPrice()"
+          />
+        </div>
+
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:#6A748A; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px;">
+            Yuk turi
+          </label>
+          <select
+            id="calc-type"
+            style="width:100%; padding:11px 14px; border:1.5px solid #E1E7F0; border-radius:10px; font-size:15px; outline:none; color:#1B2440; background:white;"
+            onchange="calcPrice()"
+          >
+            <option value="standard">📦 Standart</option>
+            <option value="birqadam">⚡ Bir Qadam</option>
+            <option value="courier">🛵 Kuryerlik xizmati</option>
+          </select>
+        </div>
+
+        <div id="calc-result" style="
+          background: linear-gradient(135deg, #0A2472, #1A5FAA);
+          color: white;
+          border-radius: 10px;
+          padding: 11px 20px;
+          text-align: center;
+          min-width: 160px;
+          display: none;
+        ">
+          <div style="font-size:11px; opacity:0.8; margin-bottom:2px;">NARX</div>
+          <div id="calc-price" style="font-size:20px; font-weight:800;"></div>
+          <div style="font-size:11px; opacity:0.7; margin-top:2px;" id="calc-breakdown"></div>
+        </div>
+      </div>
+
+      <div id="calc-empty" style="margin-top:12px; font-size:13px; color:#6A748A;">
+        Og'irlikni kiriting — narx avtomatik hisoblanadi.
+      </div>
+    </div>
+
     <!-- Tabs -->
     <section>
       <div class="flex flex-wrap gap-2">
@@ -637,6 +696,61 @@
         btn.style.background = 'white';
         btn.style.color = '#0A2472';
       }
+    }
+
+    function calcPrice() {
+      const weightInput = document.getElementById('calc-weight');
+      const type = document.getElementById('calc-type').value;
+      const weight = parseFloat(weightInput.value);
+
+      if (!weight || weight <= 0) {
+        document.getElementById('calc-result').style.display = 'none';
+        document.getElementById('calc-empty').style.display = 'block';
+        return;
+      }
+
+      // Base price: 20,000 for up to 2kg
+      // Each additional kg: +3,000
+      const BASE_PRICE = 20000;
+      const PER_KG = 3000;
+      const BASE_WEIGHT = 2;
+
+      let price = BASE_PRICE;
+      if (weight > BASE_WEIGHT) {
+        price += Math.ceil(weight - BASE_WEIGHT) * PER_KG;
+      }
+
+      // Type multiplier
+      const multipliers = {
+        'standard': 1,
+        'birqadam': 1.3,
+        'courier': 1.2
+      };
+      const multiplier = multipliers[type] || 1;
+      price = Math.round(price * multiplier / 1000) * 1000;
+
+      // Format price
+      const formatted = new Intl.NumberFormat('uz-UZ').format(price) + ' so\'m';
+
+      // Breakdown text
+      let breakdown = '';
+      if (weight <= BASE_WEIGHT) {
+        breakdown = `${weight} kg → asosiy tarif`;
+      } else {
+        const extra = Math.ceil(weight - BASE_WEIGHT);
+        breakdown = `2kg + ${extra}kg × 3,000`;
+      }
+      if (multiplier > 1) {
+        breakdown += ` × ${multiplier}`;
+      }
+
+      document.getElementById('calc-price').textContent = formatted;
+      document.getElementById('calc-breakdown').textContent = breakdown;
+      document.getElementById('calc-result').style.display = 'block';
+      document.getElementById('calc-empty').style.display = 'none';
+
+      // Highlight input
+      weightInput.style.borderColor = '#378ADD';
     }
 
     async function fetchMonthlyStats(yearMonth) {
