@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import threading
+import asyncio
 import bot
 
 # Override token from environment if set
@@ -9,19 +10,25 @@ if _token:
     bot.TOKEN = _token
 
 def run_bot():
-    bot.main()
+    # Create a new event loop for this thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        bot.main()
+    finally:
+        loop.close()
 
 if __name__ == "__main__":
-    # Start bot in background thread
+    # Start bot in background thread with its own event loop
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
     print("Bot started in background thread")
 
-    # Start proxy in main thread (Render needs open port)
+    # Start proxy in main thread
     from proxy import app
-    import os
     port = int(os.environ.get("PORT", 10000))
     print(f"Starting proxy on port {port}")
+
     from gunicorn.app.base import BaseApplication
 
     class StandaloneApp(BaseApplication):
@@ -37,7 +44,7 @@ if __name__ == "__main__":
 
     options = {
         "bind": f"0.0.0.0:{port}",
-        "workers": 2,
-        "timeout": 30,
+        "workers": 1,
+        "timeout": 60,
     }
     StandaloneApp(app, options).run()
