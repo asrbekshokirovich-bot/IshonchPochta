@@ -263,9 +263,9 @@
             style="width:100%; padding:11px 14px; border:1.5px solid #E1E7F0; border-radius:10px; font-size:15px; outline:none; color:#1B2440; background:white;"
             onchange="calcPrice()"
           >
-            <option value="standard">📦 Standart</option>
-            <option value="birqadam">⚡ Bir Qadam</option>
+            <option value="standard">📦 Standart (uyigacha)</option>
             <option value="courier">🛵 Kuryerlik xizmati</option>
+            <option value="birqadam">⚡ Bir Qadam</option>
           </select>
         </div>
 
@@ -286,6 +286,24 @@
 
       <div id="calc-empty" style="margin-top:12px; font-size:13px; color:#6A748A;">
         Og'irlikni kiriting — narx avtomatik hisoblanadi.
+      </div>
+
+      <div style="margin-top:12px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; font-size:12px;">
+        <div style="background:#F4F7FB; border-radius:8px; padding:10px; border-left:3px solid #0A2472;">
+          <div style="font-weight:700; color:#0A2472; margin-bottom:4px;">📦 Standart</div>
+          <div style="color:#6A748A;">1-2 kg: 28,000 so'm</div>
+          <div style="color:#6A748A;">+har kg: 3,000 so'm</div>
+        </div>
+        <div style="background:#F4F7FB; border-radius:8px; padding:10px; border-left:3px solid #378ADD;">
+          <div style="font-weight:700; color:#0A2472; margin-bottom:4px;">🛵 Kuryerlik</div>
+          <div style="color:#6A748A;">1 kg gacha: 20,000 so'm</div>
+          <div style="color:#6A748A;">+har kg: 5,000 so'm</div>
+        </div>
+        <div style="background:#F4F7FB; border-radius:8px; padding:10px; border-left:3px solid #5BB8F5;">
+          <div style="font-weight:700; color:#0A2472; margin-bottom:4px;">⚡ Bir Qadam</div>
+          <div style="color:#6A748A;">1 kg gacha: 15,000 so'm</div>
+          <div style="color:#6A748A;">+har kg: 3,000 so'm</div>
+        </div>
       </div>
     </div>
 
@@ -709,47 +727,59 @@
         return;
       }
 
-      // Base price: 20,000 for up to 2kg
-      // Each additional kg: +3,000
-      const BASE_PRICE = 20000;
-      const PER_KG = 3000;
-      const BASE_WEIGHT = 2;
-
-      let price = BASE_PRICE;
-      if (weight > BASE_WEIGHT) {
-        price += Math.ceil(weight - BASE_WEIGHT) * PER_KG;
-      }
-
-      // Type multiplier
-      const multipliers = {
-        'standard': 1,
-        'birqadam': 1.3,
-        'courier': 1.2
-      };
-      const multiplier = multipliers[type] || 1;
-      price = Math.round(price * multiplier / 1000) * 1000;
-
-      // Format price
-      const formatted = new Intl.NumberFormat('uz-UZ').format(price) + ' so\'m';
-
-      // Breakdown text
+      let price = 0;
       let breakdown = '';
-      if (weight <= BASE_WEIGHT) {
-        breakdown = `${weight} kg → asosiy tarif`;
-      } else {
-        const extra = Math.ceil(weight - BASE_WEIGHT);
-        breakdown = `2kg + ${extra}kg × 3,000`;
+
+      if (type === 'standard') {
+        // Standart: 1-2 kg = 28,000 so'm, har qo'shimcha kg = +3,000
+        const BASE = 28000;
+        const PER_KG = 3000;
+        const BASE_WEIGHT = 2;
+        price = BASE;
+        if (weight > BASE_WEIGHT) {
+          const extra = Math.ceil(weight - BASE_WEIGHT);
+          price += extra * PER_KG;
+          breakdown = `2kg (28,000) + ${extra}kg × 3,000`;
+        } else {
+          breakdown = `${weight}kg → asosiy tarif (1-2kg)`;
+        }
+
+      } else if (type === 'courier') {
+        // Kuryerlik: 1 kg gacha = 20,000, har qo'shimcha kg = +5,000
+        const BASE = 20000;
+        const PER_KG = 5000;
+        const BASE_WEIGHT = 1;
+        price = BASE;
+        if (weight > BASE_WEIGHT) {
+          const extra = Math.ceil(weight - BASE_WEIGHT);
+          price += extra * PER_KG;
+          breakdown = `1kg (20,000) + ${extra}kg × 5,000`;
+        } else {
+          breakdown = `${weight}kg → asosiy tarif (1kg gacha)`;
+        }
+
+      } else if (type === 'birqadam') {
+        // Bir Qadam: 1 kg gacha = 15,000, har qo'shimcha kg = +3,000
+        const BASE = 15000;
+        const PER_KG = 3000;
+        const BASE_WEIGHT = 1;
+        price = BASE;
+        if (weight > BASE_WEIGHT) {
+          const extra = Math.ceil(weight - BASE_WEIGHT);
+          price += extra * PER_KG;
+          breakdown = `1kg (15,000) + ${extra}kg × 3,000`;
+        } else {
+          breakdown = `${weight}kg → asosiy tarif (1kg gacha)`;
+        }
       }
-      if (multiplier > 1) {
-        breakdown += ` × ${multiplier}`;
-      }
+
+      const formatted = new Intl.NumberFormat('uz-UZ').format(price) + ' so\'m';
 
       document.getElementById('calc-price').textContent = formatted;
       document.getElementById('calc-breakdown').textContent = breakdown;
       document.getElementById('calc-result').style.display = 'block';
       document.getElementById('calc-empty').style.display = 'none';
 
-      // Highlight input
       weightInput.style.borderColor = '#378ADD';
     }
 
