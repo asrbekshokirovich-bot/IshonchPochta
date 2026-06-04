@@ -62,7 +62,6 @@ function Nav({ t }) {
 
 // ─────────────────── HERO ───────────────────
 function Hero({ t, layout }) {
-  const [tab, setTab] = React.useState("track");
   const [trackingInput, setTrackingInput] = React.useState("");
 
   const handleTrack = () => {
@@ -100,6 +99,9 @@ function Hero({ t, layout }) {
               <I name="truck" size={18} /> {t.actions.order}
             </a>
             <a href="#calc" className="btn btn-ghost btn-lg">{t.actions.quote}</a>
+            <a href="track.html" className="btn btn-primary btn-lg" style={{ background: "var(--blue-500)" }}>
+              <I name="search" size={18} /> {t.tracking.tab1}
+            </a>
           </div>
           <div className="hero-quickstats">
             {t.hero.stats.map((s, i) => (
@@ -112,34 +114,36 @@ function Hero({ t, layout }) {
         </div>
 
         <div className="hero-card" id="track">
-          <div className="tabs" role="tablist">
-            <button role="tab" aria-selected={tab === "track"} onClick={() => setTab("track")}>
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ margin: "0 0 4px", color: "var(--navy-800)", fontSize: 18, fontWeight: 800 }}>
               {t.tracking.tab1}
-            </button>
-            <button role="tab" aria-selected={tab === "book"} onClick={() => setTab("book")}>
-              {t.tracking.tab2}
-            </button>
+            </h3>
+            <p style={{ margin: 0, color: "var(--ink-500)", fontSize: 14 }}>
+              {t.tracking.placeholder}
+            </p>
           </div>
 
-          {tab === "track" ? (
-            <>
-              <div className="field">
-                <label>{t.tracking.placeholder.split("(")[0].trim()}</label>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input value={trackingInput} onChange={e => setTrackingInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === "Enter") handleTrack(); }} placeholder="TN12345678" />
-                  <I name="search" size={18} color="var(--ink-400)" />
-                </div>
-              </div>
-              <button type="button" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={handleTrack}>
-                {t.tracking.cta} <I name="arrow" size={16} />
-              </button>
-              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 10, textAlign: "center" }}>
-                {t.tracking.sample}
-              </div>
-            </>
-          ) : (
-            <BookForm t={t} />
-          )}
+          <div className="field">
+            <label>{t.tracking.placeholder.split("(")[0].trim()}</label>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input value={trackingInput} onChange={e => setTrackingInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === "Enter") handleTrack(); }} placeholder="TN12345678" />
+              <I name="search" size={18} color="var(--ink-400)" />
+            </div>
+          </div>
+
+          <button type="button" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={handleTrack}>
+            {t.tracking.cta} <I name="arrow" size={16} />
+          </button>
+
+          <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 10, textAlign: "center" }}>
+            {t.tracking.sample.split(":")[0]}:{" "}
+            <span
+              style={{ cursor: "pointer", textDecoration: "underline", color: "var(--ink-700)" }}
+              onClick={() => { window.location.href = "track.html?barcode=TT123456789UZ"; }}
+            >TT123456789UZ</span>
+          </div>
+
+          <BookFormPreview t={t} />
         </div>
 
         <div className="hero-deco" aria-hidden></div>
