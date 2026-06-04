@@ -15,7 +15,7 @@ function Nav({ t }) {
       <div style={{
         maxWidth: 640,
         margin: '0 auto',
-        height: 72,
+        height: 90,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -25,7 +25,7 @@ function Nav({ t }) {
             src="assets/ishonch-logo-full.png?v=2"
             alt="Ishonch Logistics"
             style={{
-              height: 52,
+              height: 80,
               width: 'auto',
               filter: 'brightness(0) invert(1)',
             }}
