@@ -59,7 +59,7 @@ function Hero({ t }) {
             src="assets/ishonch-logo-full.png?v=2"
             alt="Ishonch Logistics"
             style={{
-              height: 80,
+              height: 110,
               width: 'auto',
               filter: 'brightness(0) invert(1)',
             }}
@@ -229,24 +229,46 @@ function Footer() {
     <footer style={{
       background: '#0A2472',
       color: 'white',
-      padding: '32px 20px',
+      padding: '48px 20px',
       textAlign: 'center',
     }}>
       <div style={{maxWidth: 560, margin: '0 auto'}}>
-        <img src="assets/ishonch-logo-full.png?v=2" alt="Ishonch Logistics"
-          style={{height: 40, width:'auto', filter:'brightness(0) invert(1)', marginBottom: 16}} />
-        <p style={{color:'rgba(255,255,255,0.6)', fontSize:13, margin:'0 0 16px', fontStyle:'italic'}}>
+        <img
+          src="assets/ishonch-logo-full.png?v=2"
+          alt="Ishonch Logistics"
+          style={{
+            height: 90,
+            width: 'auto',
+            filter: 'brightness(0) invert(1)',
+            marginBottom: 20,
+          }}
+        />
+        <p style={{
+          color: 'rgba(255,255,255,0.6)',
+          fontSize: 15,
+          margin: '0 0 28px',
+          fontStyle: 'italic',
+        }}>
           Ishonch har bir yetkazishda
         </p>
-        <div style={{display:'flex', justifyContent:'center', gap:24, marginBottom:16}}>
-          <a href="tel:+998712002222" style={{color:'rgba(255,255,255,0.8)', textDecoration:'none', fontSize:14}}>
-            📞 71 200 22 22
-          </a>
-          <a href="track.html" style={{color:'rgba(255,255,255,0.8)', textDecoration:'none', fontSize:14}}>
+        <div style={{marginBottom: 28}}>
+          <a href="track.html" style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'rgba(255,255,255,0.15)',
+            color: 'white',
+            textDecoration: 'none',
+            fontSize: 15,
+            fontWeight: 700,
+            padding: '12px 24px',
+            borderRadius: 999,
+            border: '1px solid rgba(255,255,255,0.3)',
+          }}>
             📦 Yukni kuzatish
           </a>
         </div>
-        <p style={{color:'rgba(255,255,255,0.4)', fontSize:12, margin:0}}>
+        <p style={{color:'rgba(255,255,255,0.3)', fontSize:12, margin:0}}>
           © 2025 Ishonch Logistics
         </p>
       </div>
