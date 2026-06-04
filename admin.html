@@ -542,10 +542,18 @@
         </div>
       </div>
 
+      <div id="bulk-toolbar" style="display:none;background:#FCEBEB;border:1px solid #F09595;border-radius:10px;padding:12px 16px;margin:12px 16px;align-items:center;justify-content:space-between;">
+        <span id="selected-count" style="color:#A32D2D;font-weight:600;">0 ta tanlandi</span>
+        <button onclick="deleteSelected()" style="background:#A32D2D;color:white;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:13px;">🗑 Tanlanganlarni o'chirish</button>
+      </div>
+
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider">
             <tr>
+              <th class="px-4 py-3" style="width:40px;">
+                <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+              </th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Tracking</th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Yo'nalish</th>
               <th class="text-left px-4 py-3 whitespace-nowrap">Qabul qiluvchi</th>
@@ -1147,11 +1155,13 @@
     function renderRows(rows) {
       const tbody = $('#tbody');
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-12 text-center text-slate-400">Yuklar topilmadi</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-12 text-center text-slate-400">Yuklar topilmadi</td></tr>`;
+        updateBulkToolbar();
         return;
       }
       tbody.innerHTML = rows.map(r => `
         <tr data-id="${esc(r.id)}">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check" value="${esc(r.id)}" onchange="updateBulkToolbar()"></td>
           <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${escapeHtml(r.tracking_code)}</td>
           <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(r.sender_city || '—')} <span class="text-slate-400">→</span> ${escapeHtml(r.receiver_city || '—')}</td>
           <td class="px-4 py-3">${escapeHtml(r.receiver_name || '—')}</td>
@@ -1178,6 +1188,11 @@
       tbody.querySelectorAll('.del-btn').forEach(btn => {
         btn.addEventListener('click', () => deleteRow(btn.dataset.id, btn.dataset.code));
       });
+
+      // Fresh rows are always unchecked — reset select-all and hide the toolbar.
+      const selectAll = document.getElementById('select-all');
+      if (selectAll) selectAll.checked = false;
+      updateBulkToolbar();
     }
 
     function renderPaging() {
@@ -1226,6 +1241,65 @@
       } catch (e) {
         console.error('deleteRow', e);
         toast("O'chirib bo'lmadi", false);
+      }
+    }
+
+    /* ────────── Bulk delete ────────── */
+    function toggleSelectAll(checkbox) {
+      const checks = document.querySelectorAll('.row-check');
+      checks.forEach(c => c.checked = checkbox.checked);
+      updateBulkToolbar();
+    }
+
+    function updateBulkToolbar() {
+      const checked = document.querySelectorAll('.row-check:checked');
+      const toolbar = document.getElementById('bulk-toolbar');
+      const count = document.getElementById('selected-count');
+      if (checked.length > 0) {
+        toolbar.style.display = 'flex';
+        count.textContent = checked.length + ' ta tanlandi';
+      } else {
+        toolbar.style.display = 'none';
+      }
+    }
+
+    async function deleteSelected() {
+      const checked = document.querySelectorAll('.row-check:checked');
+      if (checked.length === 0) return;
+
+      const ids = Array.from(checked).map(c => c.value).filter(id => /^\d+$/.test(String(id)));
+      if (ids.length === 0) return;
+      const trackingCodes = Array.from(checked).map(c => {
+        const row = c.closest('tr');
+        return row.querySelector('td:nth-child(2)')?.textContent?.trim() || c.value;
+      });
+
+      if (!confirm(`${ids.length} ta yukni o'chirmoqchisiz?\n\n${trackingCodes.join(', ')}\n\nBu amalni qaytarib bo'lmaydi!`)) return;
+
+      try {
+        const results = await Promise.all(ids.map(id =>
+          rateLimitedFetch(`${SUPABASE_URL}/rest/v1/shipments?id=eq.${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+          })
+        ));
+        const failed = results.filter(r => !r.ok).length;
+        if (failed) {
+          toast(`${ids.length - failed} ta o'chirildi, ${failed} ta o'chmadi`, false);
+        } else {
+          toast(`${ids.length} ta yuk o'chirildi`);
+        }
+
+        const selectAll = document.getElementById('select-all');
+        if (selectAll) selectAll.checked = false;
+        document.getElementById('bulk-toolbar').style.display = 'none';
+
+        page = 0;
+        loadStats();
+        await loadPage();
+      } catch (e) {
+        console.error('deleteSelected', e);
+        toast("O'chirishda xatolik yuz berdi", false);
       }
     }
 
