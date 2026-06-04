@@ -78,6 +78,42 @@
       background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.7) 50%, rgba(255,255,255,0) 100%);
       background-size: 200% 100%;
     }
+
+    /* ───── Mobile (≤640px) ───── */
+    @media (max-width: 640px) {
+      /* Prevent horizontal overflow */
+      html, body { overflow-x: hidden !important; }
+
+      /* Header: compact logo + padding (overrides inline styles) */
+      header { padding: 12px 16px !important; }
+      header img { height: 56px !important; }
+
+      /* Hero */
+      main { padding: 0 16px 40px !important; }
+      main h1 { font-size: clamp(28px, 8vw, 48px) !important; }
+      main h1 + p { font-size: 14px !important; }
+
+      /* Search form: stack input over a full-width button */
+      #track-form { flex-direction: column; align-items: stretch; }
+      #track-form button[type="submit"] { width: 100%; min-height: 52px; justify-content: center; }
+
+      /* Result card */
+      #result article, #result > div { border-radius: 16px !important; }
+      #result .p-7, #result .p-8 { padding: 20px 16px !important; }
+      #result .px-7 { padding-left: 16px !important; padding-right: 16px !important; }
+      #result h2 { font-size: 24px !important; }
+      #result .font-mono { font-size: 14px !important; letter-spacing: 0.5px !important; }
+
+      /* Step dots: tighter grid, smaller labels that don't overflow */
+      #result ol.grid { gap: 4px !important; }
+      #result ol.grid li span { font-size: 10px !important; word-break: break-word; }
+
+      /* Meta row (ETA / id / weight): stack vertically */
+      #result article > div.border-t { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
+
+      /* Bottom button: full-width touch target */
+      #reset-btn { width: 100% !important; min-height: 48px !important; }
+    }
   </style>
 </head>
 
@@ -124,6 +160,7 @@
             class="w-full pl-12 pr-4 py-4 text-[17px] font-medium tracking-wide bg-transparent rounded-2xl placeholder:text-ink-300 focus:outline-none"
             spellcheck="false"
             autocapitalize="characters"
+            autocorrect="off"
           />
         </div>
         <button
