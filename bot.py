@@ -9,9 +9,11 @@ Storage bucket.
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 
 import httpx
+from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
 from telegram.ext import (
@@ -25,8 +27,10 @@ from telegram.ext import (
 )
 
 # ───────────────────────── Config ─────────────────────────
-# Token for @logistics_suppost_bot
-TOKEN = "8974997357:AAGsVVwBlb7uLJepzjc0HTdBCG3eM1x6YLA"
+load_dotenv()
+
+# Token for @ishonchlogistics_bot — set TELEGRAM_BOT_TOKEN in .env (gitignored)
+TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 SUPABASE_URL = "https://dhqzairyxzoppskzpzxr.supabase.co"
 SUPABASE_KEY = "sb_publishable_pjDSopKeZlYFqToEBDrvLw_Q7QO_IOd"
