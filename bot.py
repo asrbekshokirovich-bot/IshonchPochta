@@ -13,7 +13,6 @@ import os
 from datetime import datetime, timezone
 
 import httpx
-from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
 from telegram.ext import (
@@ -27,7 +26,11 @@ from telegram.ext import (
 )
 
 # ───────────────────────── Config ─────────────────────────
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Token for @ishonchlogistics_bot — set TELEGRAM_BOT_TOKEN in .env (gitignored)
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
