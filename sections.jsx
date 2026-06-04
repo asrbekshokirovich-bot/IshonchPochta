@@ -54,6 +54,18 @@ function Hero({ t }) {
     }}>
       <div style={{maxWidth: 560, margin: '0 auto'}}>
 
+        <div style={{marginBottom: 24}}>
+          <img
+            src="assets/ishonch-logo-full.png?v=2"
+            alt="Ishonch Logistics"
+            style={{
+              height: 80,
+              width: 'auto',
+              filter: 'brightness(0) invert(1)',
+            }}
+          />
+        </div>
+
         <h1 style={{
           color: 'white',
           fontSize: 'clamp(28px, 8vw, 42px)',

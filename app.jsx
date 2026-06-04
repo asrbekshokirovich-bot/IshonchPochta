@@ -23,7 +23,6 @@ function App() {
 
   return (
     <div>
-      <Nav t={t} />
       <Hero t={t} />
       <Stats />
       <About />
