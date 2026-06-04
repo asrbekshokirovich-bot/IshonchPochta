@@ -6,8 +6,7 @@ const I = window.Icon;
 function Nav({ t }) {
   return (
     <nav style={{
-      background: 'white',
-      borderBottom: '1px solid #E1E7F0',
+      background: 'linear-gradient(135deg, #0A2472 0%, #1A5FAA 100%)',
       padding: '0 20px',
       position: 'sticky',
       top: 0,
@@ -16,24 +15,21 @@ function Nav({ t }) {
       <div style={{
         maxWidth: 640,
         margin: '0 auto',
-        height: 64,
+        height: 72,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
       }}>
-        <a href="#" style={{display:'flex', alignItems:'center', gap:10, textDecoration:'none'}}>
-          <img src="assets/ishonch-logo-full.png?v=2" alt="Ishonch Logistics" style={{height:44, width:'auto'}} />
-        </a>
-        <a href="tel:+998712002222" style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          color: '#0A2472',
-          fontWeight: 700,
-          fontSize: 14,
-          textDecoration: 'none',
-        }}>
-          📞 71 200 22 22
+        <a href="#" style={{display:'flex', alignItems:'center', textDecoration:'none'}}>
+          <img
+            src="assets/ishonch-logo-full.png?v=2"
+            alt="Ishonch Logistics"
+            style={{
+              height: 52,
+              width: 'auto',
+              filter: 'brightness(0) invert(1)',
+            }}
+          />
         </a>
       </div>
     </nav>
@@ -53,23 +49,10 @@ function Hero({ t }) {
   return (
     <section style={{
       background: 'linear-gradient(135deg, #0A2472 0%, #1A5FAA 100%)',
-      padding: '60px 20px 80px',
+      padding: '40px 20px 80px',
       textAlign: 'center',
     }}>
       <div style={{maxWidth: 560, margin: '0 auto'}}>
-
-        <div style={{
-          display: 'inline-block',
-          background: 'rgba(255,255,255,0.15)',
-          color: 'white',
-          padding: '6px 16px',
-          borderRadius: 999,
-          fontSize: 13,
-          fontWeight: 600,
-          marginBottom: 20,
-        }}>
-          🚚 Ishonch Logistics
-        </div>
 
         <h1 style={{
           color: 'white',
