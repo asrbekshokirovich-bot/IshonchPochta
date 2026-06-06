@@ -6,7 +6,7 @@ Two jobs, one Render web service:
   1. /track?code=XXXX  — proxies the UzPost public API server-side (it sends no
      CORS headers, so the browser can't call it directly) and returns the JSON
      with permissive CORS headers.
-  2. everything else   — serves the static frontend (index.html, admin.html,
+  2. everything else   — serves the static frontend (track.html, admin.html,
      track.html, css, jsx, images). This puts the site and the API on the SAME
      Render domain, so track.html can reach /track without cross-origin issues.
 
@@ -102,7 +102,7 @@ def _send_static(filename):
 
 @app.route("/", methods=["GET"])
 def index():
-    return send_from_directory(BASE_DIR, "index.html")
+    return send_from_directory(BASE_DIR, "track.html")
 
 
 @app.route("/<path:filename>", methods=["GET"])
