@@ -77,8 +77,23 @@
     a, button, input, .stat-card, .feature-card { transition: all 0.2s ease; }
 
     .hero-gradient {
-      background: linear-gradient(135deg, #6C3AE8 0%, #0EA5E9 100%);
+      background: linear-gradient(135deg, #0a1628 0%, #0d2550 40%, #1a4480 70%, #1e5799 100%);
+      position: relative;
+      overflow: hidden;
     }
+    /* decorative circles for depth */
+    .hero-circle { position: absolute; border-radius: 50%; background: #fff; pointer-events: none; }
+    .hero-gradient > header, .hero-gradient > .hero-inner { position: relative; z-index: 1; }
+
+    /* photo background sections (stats + about) */
+    .section-photo {
+      background-image: url('https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1920&q=80');
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    .photo-overlay { position: absolute; inset: 0; z-index: 0; background: rgba(235, 242, 255, 0.92); }
+    #about .photo-overlay { background: rgba(220, 232, 255, 0.94); }
 
     .help-pill {
       display: inline-flex; align-items: center; gap: 6px;
@@ -134,7 +149,7 @@
       main { padding: 24px 16px 40px !important; }
 
       /* Stats: tighter gap */
-      #stats { gap: 12px !important; }
+      #stats .grid { gap: 12px !important; }
 
       /* Search form: stack input over a full-width button */
       #track-form { flex-direction: column; align-items: stretch; }
@@ -162,8 +177,12 @@
 
 <body class="stage min-h-screen text-ink-900 antialiased">
 
-  <!-- ───────── Hero (purple → blue gradient) ───────── -->
+  <!-- ───────── Hero (deep navy → blue gradient) ───────── -->
   <div class="hero-gradient">
+    <!-- decorative circles for depth -->
+    <div class="hero-circle" style="width:480px;height:480px;top:-180px;right:-140px;opacity:.05;"></div>
+    <div class="hero-circle" style="width:360px;height:360px;bottom:-160px;left:-120px;opacity:.06;"></div>
+    <div class="hero-circle" style="width:260px;height:260px;top:-90px;left:-110px;opacity:.04;"></div>
 
   <!-- Header: white logo stays as-is on the gradient -->
   <header class="max-w-3xl mx-auto px-6 pt-8 flex items-center justify-between" style="padding: 20px 32px;">
@@ -236,7 +255,9 @@
     <section id="result" class="hidden mb-10" aria-live="polite"></section>
 
     <!-- ───────── STATS ───────── -->
-    <section id="stats" class="grid grid-cols-2 gap-4">
+    <section id="stats" class="section-photo rounded-3xl overflow-hidden p-5 sm:p-6">
+      <div class="photo-overlay"></div>
+      <div class="relative z-10 grid grid-cols-2 gap-4">
       <div class="stat-card">
         <div class="text-2xl font-extrabold text-navy-800">10 000+</div>
         <div class="mt-1 text-[13px] font-medium text-ink-500">Yetkazilgan yuklar</div>
@@ -253,10 +274,13 @@
         <div class="text-2xl font-extrabold text-navy-800">24/7</div>
         <div class="mt-1 text-[13px] font-medium text-ink-500">Qo'llab-quvvatlash</div>
       </div>
+      </div>
     </section>
 
     <!-- ───────── ABOUT ───────── -->
-    <section id="about" class="mt-14">
+    <section id="about" class="section-photo mt-14 rounded-3xl overflow-hidden p-5 sm:p-7">
+      <div class="photo-overlay"></div>
+      <div class="relative z-10">
       <h2 class="text-2xl font-extrabold tracking-tight text-navy-800 text-center">Ishonch Logistics haqida</h2>
       <p class="mt-2 text-center text-ink-500 text-[14.5px]">Yukingizni ishonchli qo'llarga topshiring.</p>
 
@@ -281,6 +305,7 @@
           <h3 class="mt-2 font-bold text-navy-800 text-[15px]">Telegram bot</h3>
           <p class="mt-1 text-[13px] text-ink-500 leading-relaxed">Botimiz orqali buyurtma bering va xabarnomalar oling.</p>
         </div>
+      </div>
       </div>
     </section>
   </main>
