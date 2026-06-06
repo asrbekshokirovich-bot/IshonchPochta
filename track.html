@@ -165,6 +165,7 @@
       /* Step dots: tighter grid, smaller labels that don't overflow */
       #result ol.grid { gap: 4px !important; }
       #result ol.grid li span { font-size: 10px !important; word-break: break-word; }
+      #result ol.grid li span.step-emoji { font-size: 16px !important; }
 
       /* Meta row (ETA / id / weight): stack vertically */
       #result article > div.border-t { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
@@ -482,10 +483,10 @@
     };
 
     const STEPS = [
-      { key:'accepted',         label:'Qabul qilindi' },
-      { key:'in_transit',       label:'Yo\u02bclda' },
-      { key:'out_for_delivery', label:'Yetkazib berishda' },
-      { key:'delivered',        label:'Yetkazildi' },
+      { key:'accepted',         emoji:'\u{1F3ED}', label:'Qabul qilindi' },
+      { key:'in_transit',       emoji:'\u{1F69A}', label:'Yo\u02bclda' },
+      { key:'out_for_delivery', emoji:'\u{1F3C3}\u200d\u2642\ufe0f\u200d\u27a1\ufe0f', label:'Yetkazib berishda' },
+      { key:'delivered',        emoji:'\u{1F4E6}', label:'Yetkazildi' },
     ];
 
     const $ = (sel) => document.querySelector(sel);
@@ -559,7 +560,7 @@
                 return `
                   <li class="flex flex-col items-center text-center">
                     <div class="w-3 h-3 rounded-full ${done ? tone.bar : current ? tone.bar : 'bg-ink-200'} ${current && !isDelivered ? 'ring-4 ring-amber-100' : ''} ${current && isDelivered ? 'ring-4 ring-emerald-100' : ''}"></div>
-                    <span class="mt-2 text-[11.5px] font-semibold ${i <= stepIdx ? 'text-ink-900' : 'text-ink-400'} leading-tight">${s.label}</span>
+                    <span class="mt-2 text-[11.5px] font-semibold ${i <= stepIdx ? 'text-ink-900' : 'text-ink-400'} leading-tight"><span class="step-emoji text-[18px] leading-none align-middle">${s.emoji}</span> ${s.label}</span>
                   </li>
                 `;
               }).join('')}
