@@ -416,39 +416,6 @@
       }
     }
 
-    // Persist the latest UzPost status into Supabase so the bot and admin panel
-    // stay in sync. Updates an existing row's status; inserts one if missing.
-    // Never throws — a sync failure must not block showing the UzPost result.
-    async function syncSupabase(code, uz, existing) {
-      const now = new Date().toISOString();
-      try {
-        if (existing) {
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/shipments?tracking_code=eq.${encodeURIComponent(code)}`,
-            { method: 'PATCH',
-              headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
-              body: JSON.stringify({ status: uz.status, updated_at: now }) }
-          );
-        } else {
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/shipments`,
-            { method: 'POST',
-              headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
-              body: JSON.stringify({
-                tracking_code: code,
-                status: uz.status,
-                sender_city: (uz.origin && uz.origin.city) || null,
-                receiver_city: (uz.dest && uz.dest.city) || null,
-                package_type: uz.package || 'Standart',
-                updated_at: now,
-              }) }
-          );
-        }
-      } catch (e) {
-        console.warn('Supabase sync failed:', e);
-      }
-    }
-
     function fmtDate(iso) {
       if (!iso) return '—';
       try {
@@ -508,12 +475,12 @@
 
       if (isUzPostCode(code)) {
         // UzPost-format code → UzPost is authoritative. Fetch the live status
-        // first and sync our DB, so a stale Supabase row never masks it.
+        // and display it. Display-only: we do NOT write UzPost results into
+        // Supabase — the admin shipments list must contain only manually-added
+        // packages, never auto-inserted UzPost lookups.
         const uz = await fetchUzPost(code);
         if (uz && uz.found) {
-          const row = await fetchSupabaseRow(code);
-          await syncSupabase(code, uz, row);
-          return resultFromUzPost(code, uz, row);
+          return resultFromUzPost(code, uz, null);
         }
         // UzPost has no record / was unreachable → fall back to our own DB.
         const row = await fetchSupabaseRow(code);
