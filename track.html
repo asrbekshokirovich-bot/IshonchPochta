@@ -365,86 +365,167 @@
       ? 'http://localhost:10000'
       : RENDER_PROXY;
 
-    async function trackShipment(trackingCode) {
-      const code = trackingCode.trim().toUpperCase();
+    // A UzPost tracking number: 2 letters + 9 digits + 2 letters (e.g.
+    // LA193723275UZ), or anything that starts with LA / UZ.
+    function isUzPostCode(code) {
+      return /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(code) || /^(LA|UZ)/.test(code);
+    }
 
-      // 1. Try Supabase first (Ishonch own shipments)
+    const SB_HEADERS = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Read the Ishonch (Supabase) shipment row for a code, or null if none.
+    async function fetchSupabaseRow(code) {
       try {
         const res = await fetch(
           `${SUPABASE_URL}/rest/v1/shipments?tracking_code=eq.${encodeURIComponent(code)}&select=*`,
-          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+          { headers: SB_HEADERS }
         );
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const row = data[0];
-          const mapped = mapStatus(row.status);
-          return {
-            id: row.tracking_code,
-            source: 'ishonch',
-            status: mapped,
-            currentStep: statusToStep(mapped),
-            etaText: statusToEta(mapped),
-            originCity: row.sender_city || '—',
-            destCity: row.receiver_city || '—',
-            lastEvent: (row.package_type || 'Standart') + ' · ' + row.tracking_code,
-            lastEventAt: row.updated_at,
-            weightKg: row.weight_kg || 0,
-            service: 'standard',
-            receiverName: row.receiver_name || '',
-            senderName: row.sender_name || '',
-          };
-        }
+        return (Array.isArray(data) && data.length > 0) ? data[0] : null;
       } catch (e) {
         console.warn('Supabase lookup failed:', e);
+        return null;
       }
+    }
 
-      // 2. Try UzPost public API
+    // Fetch + normalise a UzPost record through our CORS proxy (proxy.py does
+    // the status mapping). Returns the normalised object, or null on failure.
+    async function fetchUzPost(code) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-        // Call our own CORS proxy instead of UzPost directly (browser CORS).
         const res = await fetch(
           `${PROXY_BASE}/track?code=${encodeURIComponent(code)}`,
           { headers: { 'Accept': 'application/json' }, signal: controller.signal }
         );
-        clearTimeout(timeout);
-
-        if (res.status === 404) return { id: code, status: 'not_found' };
-        if (!res.ok) throw new Error(`UzPost error ${res.status}`);
-
-        const raw = await res.json();
-        const d = (raw && raw.data) ? raw.data : raw;
-        const locations = Array.isArray(d.locations) ? d.locations : [];
-        const pickup = locations.find(l => l.pickup === true) || {};
-        const dest   = locations.find(l => l.pickup === false) || {};
-        const st     = d.status || 'accepted';
-        const mapped = mapStatus(st);
-
-        return {
-          id: d.order_number || code,
-          source: 'uzpost',
-          status: mapped,
-          currentStep: statusToStep(mapped),
-          etaText: statusToEta(mapped),
-          originCity: pickup.address_city || '—',
-          destCity: dest.address_city || '—',
-          lastEvent: ((d.package && d.package.name) || 'Jo\'natma') + ' · ' + (d.order_number || code),
-          lastEventAt: new Date().toISOString(),
-          weightKg: 0,
-          service: 'standard',
-        };
+        if (!res.ok) return null;
+        const j = await res.json();
+        return (j && j.ok) ? j : null;
       } catch (e) {
         if (e.name === 'AbortError') {
           throw new Error("So'rov vaqti tugadi. Qayta urinib ko'ring.");
         }
-        if (e instanceof TypeError) {
-          // CORS / network failure — don't throw, fall through to not_found.
-          console.warn('UzPost CORS/network error:', e);
+        console.warn('UzPost lookup failed:', e);
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    // Persist the latest UzPost status into Supabase so the bot and admin panel
+    // stay in sync. Updates an existing row's status; inserts one if missing.
+    // Never throws — a sync failure must not block showing the UzPost result.
+    async function syncSupabase(code, uz, existing) {
+      const now = new Date().toISOString();
+      try {
+        if (existing) {
+          await fetch(
+            `${SUPABASE_URL}/rest/v1/shipments?tracking_code=eq.${encodeURIComponent(code)}`,
+            { method: 'PATCH',
+              headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ status: uz.status, updated_at: now }) }
+          );
         } else {
-          console.warn('UzPost lookup failed:', e);
+          await fetch(
+            `${SUPABASE_URL}/rest/v1/shipments`,
+            { method: 'POST',
+              headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+              body: JSON.stringify({
+                tracking_code: code,
+                status: uz.status,
+                sender_city: (uz.origin && uz.origin.city) || null,
+                receiver_city: (uz.dest && uz.dest.city) || null,
+                package_type: uz.package || 'Standart',
+                updated_at: now,
+              }) }
+          );
         }
+      } catch (e) {
+        console.warn('Supabase sync failed:', e);
+      }
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      try {
+        return new Date(iso).toLocaleString('uz-UZ', { dateStyle: 'medium', timeStyle: 'short' });
+      } catch { return iso; }
+    }
+
+    // Build the render object from a UzPost record (+ optional Ishonch row).
+    function resultFromUzPost(code, uz, row) {
+      const status = uz.status || 'accepted';
+      const origin = uz.origin || {}, dest = uz.dest || {};
+      const details = [
+        { label: 'UzPost holati', value: uz.status_label_uz || '—' },
+        { label: 'Qayerdan',      value: [origin.city, origin.address].filter(Boolean).join(' · ') || '—' },
+        { label: 'Qayerga',       value: [dest.city, dest.address].filter(Boolean).join(' · ') || '—' },
+        { label: "Jo'natma turi", value: uz.package || '—' },
+        { label: 'Yangilandi',    value: fmtDate(uz.synced_at) },
+      ];
+      return {
+        id: uz.code || code,
+        source: 'uzpost',
+        status,
+        currentStep: statusToStep(status),
+        etaText: statusToEta(status),
+        originCity: origin.city || (row && row.sender_city) || '—',
+        destCity: dest.city || (row && row.receiver_city) || '—',
+        lastEvent: (uz.package || (row && row.package_type) || "Jo'natma") + ' · ' + (uz.code || code),
+        lastEventAt: uz.synced_at,
+        weightKg: (row && row.weight_kg) || 0,
+        service: 'standard',
+        details,
+      };
+    }
+
+    // Build the render object from an Ishonch (Supabase) row.
+    function resultFromRow(row) {
+      const mapped = mapStatus(row.status);
+      return {
+        id: row.tracking_code,
+        source: 'ishonch',
+        status: mapped,
+        currentStep: statusToStep(mapped),
+        etaText: statusToEta(mapped),
+        originCity: row.sender_city || '—',
+        destCity: row.receiver_city || '—',
+        lastEvent: (row.package_type || 'Standart') + ' · ' + row.tracking_code,
+        lastEventAt: row.updated_at,
+        weightKg: row.weight_kg || 0,
+        service: 'standard',
+        receiverName: row.receiver_name || '',
+        senderName: row.sender_name || '',
+      };
+    }
+
+    async function trackShipment(trackingCode) {
+      const code = trackingCode.trim().toUpperCase();
+
+      if (isUzPostCode(code)) {
+        // UzPost-format code → UzPost is authoritative. Fetch the live status
+        // first and sync our DB, so a stale Supabase row never masks it.
+        const uz = await fetchUzPost(code);
+        if (uz && uz.found) {
+          const row = await fetchSupabaseRow(code);
+          await syncSupabase(code, uz, row);
+          return resultFromUzPost(code, uz, row);
+        }
+        // UzPost has no record / was unreachable → fall back to our own DB.
+        const row = await fetchSupabaseRow(code);
+        if (row) return resultFromRow(row);
+        return { id: code, status: 'not_found' };
       }
 
+      // Non-UzPost code → our own shipments first, UzPost as a fallback.
+      const row = await fetchSupabaseRow(code);
+      if (row) return resultFromRow(row);
+      const uz = await fetchUzPost(code);
+      if (uz && uz.found) return resultFromUzPost(code, uz, null);
       return { id: code, status: 'not_found' };
     }
 
@@ -604,6 +685,24 @@
               <span>${esc(data.weightKg)} kg</span>
             </div>
           </div>
+
+          <!-- UzPost details (real-time data from UzPost; public API exposes
+               current status + route, not a dated event log) -->
+          ${(data.details && data.details.length) ? `
+          <div class="px-7 sm:px-9 py-5 border-t border-ink-100">
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-[.16em] font-semibold text-ink-400 mb-3">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              UzPost ma'lumotlari
+            </div>
+            <dl class="space-y-2.5">
+              ${data.details.map(d => `
+                <div class="flex items-start justify-between gap-4 text-[13.5px]">
+                  <dt class="text-ink-500 shrink-0">${esc(d.label)}</dt>
+                  <dd class="text-right font-medium text-navy-800 break-words">${esc(d.value)}</dd>
+                </div>
+              `).join('')}
+            </dl>
+          </div>` : ``}
         </article>
 
         <button id="reset-btn" class="mt-4 w-full py-3 text-[13.5px] font-semibold text-ink-500 hover:text-navy-800 transition-colors">
