@@ -16,7 +16,7 @@
     content="default-src 'self';
              script-src 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.sheetjs.com https://cdnjs.cloudflare.com;
              style-src 'unsafe-inline';
-             connect-src https://dhqzairyxzoppskzpzxr.supabase.co;
+             connect-src https://dhqzairyxzoppskzpzxr.supabase.co https://alicargochina.uz;
              img-src 'self' data: blob:;
              object-src 'none';
              base-uri 'self';
@@ -296,6 +296,16 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+    <!-- View switcher (Yuklar / To'lovlar) -->
+    <section>
+      <div class="flex flex-wrap gap-2">
+        <button id="view-btn-yuklar" type="button" class="tab-btn active" onclick="showView('yuklar')">📦 Yuklar</button>
+        <button id="view-btn-tolovlar" type="button" class="tab-btn" onclick="showView('tolovlar')">💳 To'lovlar</button>
+      </div>
+    </section>
+
+    <div id="view-yuklar" class="space-y-8">
 
     <!-- Stats -->
     <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -578,7 +588,61 @@
       </div>
     </section>
 
+    </div><!-- /view-yuklar -->
+
+    <!-- ══════════ To'lovlar view ══════════ -->
+    <div id="view-tolovlar" class="hidden">
+      <section class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-lg font-bold text-navy">To'lovlar</h2>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <input id="pay-search" placeholder="Klient kodi yoki ID..."
+              class="px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 text-sm" />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider">
+              <tr>
+                <th class="text-left px-4 py-3 whitespace-nowrap">ID</th>
+                <th class="text-left px-4 py-3 whitespace-nowrap">Sana</th>
+                <th class="text-left px-4 py-3 whitespace-nowrap">Klient</th>
+                <th class="text-left px-4 py-3 whitespace-nowrap">Summa ($)</th>
+                <th class="text-left px-4 py-3 whitespace-nowrap">To'lov turi</th>
+                <th class="text-left px-4 py-3 whitespace-nowrap">Status</th>
+                <th class="text-right px-4 py-3 whitespace-nowrap">Amallar</th>
+              </tr>
+            </thead>
+            <tbody id="pay-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+
+        <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
+          <div id="pay-page-info" class="text-sm text-slate-500">—</div>
+          <div class="flex gap-2">
+            <button id="pay-prev" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">← Oldingi</button>
+            <button id="pay-next" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Keyingi →</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
   </main>
+
+  <!-- To'lov tafsilotlari modal -->
+  <div id="pay-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(10,36,114,0.45)">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-navy">To'lov tafsilotlari</h3>
+        <button type="button" onclick="closePayModal()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+      </div>
+      <div id="pay-modal-body" class="px-5 py-4 text-sm"></div>
+      <div class="px-5 py-3 border-t border-slate-200 text-right">
+        <button type="button" onclick="closePayModal()" class="py-2 px-4 rounded-lg font-semibold btn-navy text-sm">Yopish</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast"></div>
 
@@ -1580,6 +1644,124 @@
     });
 
     // Show/hide password toggle handled inline via toggleLoginPass().
+
+    /* ══════════ To'lovlar (AliCargo payments API) ══════════ */
+    const PAY_API      = 'https://alicargochina.uz/api/payments.php';
+    const PAY_PAGE_SIZE = 10;
+    let payPage   = 1;          // 1-based (API is 1-based)
+    let payTotal  = 0;
+    let paySearch = '';
+    let payLoaded = false;
+    let payRows   = [];         // cache of current page rows (for detail modal)
+
+    const PAY_TYPE_LABELS = { CARD: '💳 Karta', CASH: '💵 Naqd' };
+    const PAY_STATUS_LABELS = { accept: 'Qabul qilindi' };
+
+    function fmtMoney(n) {
+      const v = Number(n) || 0;
+      return v.toLocaleString('uz-UZ');
+    }
+
+    function showView(name) {
+      const isPay = name === 'tolovlar';
+      document.getElementById('view-yuklar').classList.toggle('hidden', isPay);
+      document.getElementById('view-tolovlar').classList.toggle('hidden', !isPay);
+      document.getElementById('view-btn-yuklar').classList.toggle('active', !isPay);
+      document.getElementById('view-btn-tolovlar').classList.toggle('active', isPay);
+      if (isPay && !payLoaded) { payLoaded = true; loadPayments(); }
+    }
+
+    async function loadPayments() {
+      const tbody = $('#pay-tbody');
+      tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">Yuklanmoqda…</td></tr>`;
+      const url = `${PAY_API}?page=${payPage}&limit=${PAY_PAGE_SIZE}`
+        + `&search=${encodeURIComponent(paySearch)}&status=`;
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Xatolik');
+        payRows  = json.data || [];
+        payTotal = json.total || 0;
+        renderPayments();
+      } catch (e) {
+        payRows = []; payTotal = 0;
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-red-600">To'lovlarni yuklab bo'lmadi: ${esc(e.message)}</td></tr>`;
+        $('#pay-page-info').textContent = '—';
+        $('#pay-prev').disabled = true;
+        $('#pay-next').disabled = true;
+        toast("To'lovlarni yuklashda xatolik", false);
+      }
+    }
+
+    function renderPayments() {
+      const tbody = $('#pay-tbody');
+      if (!payRows.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">To'lov topilmadi</td></tr>`;
+      } else {
+        tbody.innerHTML = payRows.map(r => `
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${esc(r.id)}</td>
+            <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${esc(fmtDate(r.date))}</td>
+            <td class="px-4 py-3 whitespace-nowrap font-semibold">${esc(r.client || '—')}</td>
+            <td class="px-4 py-3 whitespace-nowrap font-semibold text-navy">$${esc(r.summa_usd)}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${esc(PAY_TYPE_LABELS[r.payment_type] || r.payment_type || '—')}</td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">${esc(PAY_STATUS_LABELS[r.status] || r.status || '—')}</span>
+            </td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              <button type="button" onclick="showPayDetail(${esc(r.id)})"
+                class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50">Batafsil</button>
+            </td>
+          </tr>`).join('');
+      }
+      const totalPages = Math.max(1, Math.ceil(payTotal / PAY_PAGE_SIZE));
+      const start = payTotal ? (payPage - 1) * PAY_PAGE_SIZE + 1 : 0;
+      const end   = Math.min(payPage * PAY_PAGE_SIZE, payTotal);
+      $('#pay-page-info').textContent = `${start}–${end} / ${payTotal} (${payPage}/${totalPages}-sahifa)`;
+      $('#pay-prev').disabled = payPage <= 1;
+      $('#pay-next').disabled = payPage >= totalPages;
+    }
+
+    function showPayDetail(id) {
+      const r = payRows.find(x => String(x.id) === String(id));
+      if (!r) return;
+      const rows = [
+        ['ID', esc(r.id)],
+        ['Sana', esc(fmtDate(r.date))],
+        ['Klient', esc(r.client || '—')],
+        ['Zakaz №', esc(r.order_id || '—')],
+        ['Summa ($)', '$' + esc(r.summa_usd)],
+        ['Summa (UZS)', esc(fmtMoney(r.summa_uzs)) + " so'm"],
+        ['Kurs', esc(fmtMoney(r.kurs))],
+        ['Valyuta', esc(r.valyuta || '—')],
+        ["To'lov turi", esc(PAY_TYPE_LABELS[r.payment_type] || r.payment_type || '—')],
+        ['Status', esc(PAY_STATUS_LABELS[r.status] || r.status || '—')],
+      ];
+      $('#pay-modal-body').innerHTML = `<dl class="divide-y divide-slate-100">${
+        rows.map(([k, v]) => `
+          <div class="flex justify-between gap-4 py-2">
+            <dt class="text-slate-500">${k}</dt>
+            <dd class="font-semibold text-slate-800 text-right">${v}</dd>
+          </div>`).join('')
+      }</dl>`;
+      $('#pay-modal').classList.remove('hidden');
+    }
+
+    function closePayModal() {
+      $('#pay-modal').classList.add('hidden');
+    }
+
+    // Payments wiring
+    let paySearchTimer = null;
+    $('#pay-search').addEventListener('input', (e) => {
+      paySearch = e.target.value.trim();
+      clearTimeout(paySearchTimer);
+      paySearchTimer = setTimeout(() => { payPage = 1; loadPayments(); }, 350);
+    });
+    $('#pay-prev').addEventListener('click', () => { if (payPage > 1) { payPage--; loadPayments(); } });
+    $('#pay-next').addEventListener('click', () => { payPage++; loadPayments(); });
+    $('#pay-modal').addEventListener('click', (e) => { if (e.target.id === 'pay-modal') closePayModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePayModal(); });
 
     /* ────────── Init ────────── */
     // Only reveal the panel (and fetch data) if a valid session already exists.
