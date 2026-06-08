@@ -86,9 +86,11 @@ UZPOST_STATUS_MAP = {
     "no_capacity_for_delivery": "out_for_delivery",
     "out_of_delivery_area": "out_for_delivery",
     "recipient_not_available": "out_for_delivery",
-    # delivered — dispatched ("Yuborilgan"), issued to recipient, completed
-    "dispatched": "delivered",
-    "dispatch": "delivered",
+    # "Yuborilgan" — dispatched FOR delivery, i.e. out for delivery, NOT yet
+    # delivered. Only "Topshirildi" (issued to recipient) counts as delivered.
+    "dispatched": "out_for_delivery",
+    "dispatch": "out_for_delivery",
+    # delivered — issued to recipient ("Topshirildi"), completed
     "issued_to_recipient": "delivered",
     "delivered": "delivered",
     "completed": "delivered",
