@@ -699,6 +699,8 @@
       populateMonthSelect();
       loadStats();
       loadPage();
+      // Restore the tab the user was on before refresh (#tolovlar), else default to Yuklar.
+      showView(window.location.hash === '#tolovlar' ? 'tolovlar' : 'yuklar');
     }
 
     function logout() {
@@ -1661,6 +1663,8 @@
       document.getElementById('view-tolovlar').classList.toggle('hidden', !isPay);
       document.getElementById('view-btn-yuklar').classList.toggle('active', !isPay);
       document.getElementById('view-btn-tolovlar').classList.toggle('active', isPay);
+      // Remember the active tab so a refresh stays on it.
+      window.location.hash = isPay ? '#tolovlar' : '#yuklar';
       if (isPay && !payLoaded) { payLoaded = true; loadPayments(); }
     }
 
