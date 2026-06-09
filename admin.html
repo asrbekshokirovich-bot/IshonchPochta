@@ -631,14 +631,16 @@
 
   <!-- To'lov tafsilotlari modal -->
   <div id="pay-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(10,36,114,0.45)">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style="max-height:90vh">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
         <h3 class="text-lg font-bold text-navy">To'lov tafsilotlari</h3>
         <button type="button" onclick="closePayModal()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
       </div>
-      <div id="pay-modal-body" class="px-5 py-4 text-sm"></div>
-      <div class="px-5 py-3 border-t border-slate-200 text-right">
-        <button type="button" onclick="closePayModal()" class="py-2 px-4 rounded-lg font-semibold btn-navy text-sm">Yopish</button>
+      <div id="pay-modal-body" class="px-5 py-4 text-sm overflow-y-auto"></div>
+      <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+        <button type="button" onclick="payApprove()" class="py-2 px-4 rounded-lg font-semibold text-sm text-white" style="background:#16a34a">✓ Tasdiqlash</button>
+        <button type="button" onclick="payReject()" class="py-2 px-4 rounded-lg font-semibold text-sm text-white" style="background:#dc2626">✕ Otkaz</button>
+        <button type="button" onclick="closePayModal()" class="py-2 px-4 rounded-lg font-semibold text-sm bg-slate-200 text-slate-700 hover:bg-slate-300">Yopish</button>
       </div>
     </div>
   </div>
@@ -1712,29 +1714,99 @@
       $('#pay-next').disabled = payPage >= totalPages;
     }
 
-    function showPayDetail(id) {
-      const r = payRows.find(x => String(x.id) === String(id));
-      if (!r) return;
-      const rows = [
-        ['ID', esc(r.id)],
-        ['Sana', esc(fmtDate(r.created_date))],
-        ['Klient', esc(r.client || '—')],
-        ['Summa ($)', '$' + esc(r.amount_usd)],
-        ['Status', esc(r.status || '—')],
-        ["To'langan", r.paid ? 'Ha' : "Yo'q"],
-      ];
-      $('#pay-modal-body').innerHTML = `<dl class="divide-y divide-slate-100">${
-        rows.map(([k, v]) => `
-          <div class="flex justify-between gap-4 py-2">
-            <dt class="text-slate-500">${k}</dt>
-            <dd class="font-semibold text-slate-800 text-right">${v}</dd>
-          </div>`).join('')
-      }</dl>`;
+    const KURS = 12100;          // USD -> UZS rate used for display
+    let currentPayId = null;     // order currently shown in the detail modal
+
+    // Fetch full order detail and open the modal.
+    async function showPayDetail(id) {
+      currentPayId = id;
+      const body = $('#pay-modal-body');
+      body.innerHTML = `<div class="py-10 text-center text-slate-400">Yuklanmoqda…</div>`;
       $('#pay-modal').classList.remove('hidden');
+      try {
+        const res = await fetch(`${PAY_API}?id=${encodeURIComponent(id)}`);
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Xatolik');
+        renderPayDetail(json.data);
+      } catch (e) {
+        body.innerHTML = `<div class="py-10 text-center text-red-600">Ma'lumotni yuklab bo'lmadi: ${esc(e.message)}</div>`;
+      }
+    }
+
+    function imgErr(el) {
+      el.onerror = null;
+      el.outerHTML = `<div class="text-slate-400 text-sm py-6 text-center bg-slate-50 rounded-lg border border-slate-200">Chek rasmini yuklab bo'lmadi</div>`;
+    }
+
+    function renderPayDetail(d) {
+      const uzs = Math.round((Number(d.price) || 0) * KURS);
+      const photo = d.payment_photo_url
+        ? `<a href="${esc(d.payment_photo_url)}" target="_blank" rel="noopener" class="block">
+             <img src="${esc(d.payment_photo_url)}" alt="Chek rasmi" onerror="imgErr(this)"
+                  class="w-full rounded-lg border border-slate-200 object-contain bg-slate-50" style="max-height:360px">
+           </a>`
+        : `<div class="text-slate-400 text-sm py-6 text-center bg-slate-50 rounded-lg border border-slate-200">Chek rasmi yo'q</div>`;
+
+      $('#pay-modal-body').innerHTML = `
+        <div class="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide">FIO</div>
+            <div class="font-bold text-navy text-base">${esc(d.fio || '—')}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${esc(d.client_code || '')} · ID ${esc(d.id)}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400 uppercase tracking-wide">Telefon</div>
+            <a href="tel:${esc(d.phone || '')}" class="font-semibold text-blue-600">${esc(d.phone || '—')}</a>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 py-3 border-b border-slate-100">
+          <div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide">To'lov sanasi</div>
+            <div class="font-semibold text-slate-800">${esc(fmtDate(d.payment_date))}</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-400 uppercase tracking-wide">Buyurtma sanasi</div>
+            <div class="font-semibold text-slate-800">${esc(fmtDate(d.created_date))}</div>
+          </div>
+        </div>
+
+        <div class="py-3 border-b border-slate-100">
+          <div class="text-xs text-slate-400 uppercase tracking-wide">Manzil</div>
+          <div class="font-medium text-slate-800">${esc(d.address || '—')}</div>
+        </div>
+
+        <div class="py-3 border-b border-slate-100">
+          <div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Chek rasmi</div>
+          ${photo}
+        </div>
+
+        <div class="pt-3 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">Zakaz narxi</span>
+            <span class="font-bold text-navy text-lg">$${(Number(d.price) || 0).toFixed(2)} <span class="text-slate-400 font-normal text-sm">| ${uzs.toLocaleString('uz-UZ')} so'm</span></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">Kurs</span>
+            <span class="font-semibold text-slate-700">${KURS.toLocaleString('uz-UZ')}</span>
+          </div>
+          ${d.weight != null ? `<div class="flex items-center justify-between"><span class="text-slate-500">Vazn</span><span class="font-semibold text-slate-700">${esc(d.weight)} kg</span></div>` : ''}
+          ${d.payment_type ? `<div class="flex items-center justify-between"><span class="text-slate-500">To'lov turi</span><span class="font-semibold text-slate-700">${esc(d.payment_type)}</span></div>` : ''}
+        </div>`;
+    }
+
+    // NOTE: approve/reject backend endpoints are not implemented yet — these are
+    // placeholders so the buttons match the spec without faking a result.
+    function payApprove() {
+      toast("Tasdiqlash funksiyasi hali ulanmagan (backend kerak)", false);
+    }
+    function payReject() {
+      toast("Otkaz funksiyasi hali ulanmagan (backend kerak)", false);
     }
 
     function closePayModal() {
       $('#pay-modal').classList.add('hidden');
+      currentPayId = null;
     }
 
     // Payments wiring
