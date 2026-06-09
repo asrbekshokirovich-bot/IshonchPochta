@@ -1795,14 +1795,26 @@
         </div>`;
     }
 
-    // NOTE: approve/reject backend endpoints are not implemented yet — these are
-    // placeholders so the buttons match the spec without faking a result.
-    function payApprove() {
-      toast("Tasdiqlash funksiyasi hali ulanmagan (backend kerak)", false);
+    let payActionBusy = false;
+    async function payAction(action) {
+      if (!currentPayId || payActionBusy) return;
+      payActionBusy = true;
+      const id = currentPayId;
+      try {
+        const res = await fetch(`${PAY_API}?action=${action}&id=${encodeURIComponent(id)}`);
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Xatolik');
+        toast(action === 'approve' ? "To'lov tasdiqlandi" : "To'lov rad etildi", true);
+        closePayModal();
+        loadPayments();            // refresh the list (order leaves pay_approve)
+      } catch (e) {
+        toast("Xatolik: " + e.message, false);
+      } finally {
+        payActionBusy = false;
+      }
     }
-    function payReject() {
-      toast("Otkaz funksiyasi hali ulanmagan (backend kerak)", false);
-    }
+    function payApprove() { payAction('approve'); }
+    function payReject()  { payAction('reject'); }
 
     function closePayModal() {
       $('#pay-modal').classList.add('hidden');
