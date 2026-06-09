@@ -638,8 +638,6 @@
       </div>
       <div id="pay-modal-body" class="px-5 py-4 text-sm overflow-y-auto"></div>
       <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
-        <button type="button" onclick="payApprove()" class="py-2 px-4 rounded-lg font-semibold text-sm text-white" style="background:#16a34a">✓ Tasdiqlash</button>
-        <button type="button" onclick="payReject()" class="py-2 px-4 rounded-lg font-semibold text-sm text-white" style="background:#dc2626">✕ Otkaz</button>
         <button type="button" onclick="closePayModal()" class="py-2 px-4 rounded-lg font-semibold text-sm bg-slate-200 text-slate-700 hover:bg-slate-300">Yopish</button>
       </div>
     </div>
@@ -1690,6 +1688,17 @@
       }
     }
 
+    // Colored badge for an order's actual status.
+    const PAY_STATUS_BADGE = {
+      paid:        'bg-emerald-100 text-emerald-800',  // green
+      pay_approve: 'bg-amber-100 text-amber-800',      // yellow
+      new:         'bg-blue-100 text-blue-800',         // blue
+    };
+    function payStatusBadge(status) {
+      const cls = PAY_STATUS_BADGE[status] || 'bg-slate-100 text-slate-700'; // gray fallback
+      return `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${esc(status || '—')}</span>`;
+    }
+
     function renderPayments() {
       const tbody = $('#pay-tbody');
       if (!payRows.length) {
@@ -1701,9 +1710,7 @@
             <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${esc(fmtDate(r.created_date))}</td>
             <td class="px-4 py-3 whitespace-nowrap font-semibold">${esc(r.client || '—')}</td>
             <td class="px-4 py-3 whitespace-nowrap font-semibold text-navy">$${esc(r.amount_usd)}</td>
-            <td class="px-4 py-3 whitespace-nowrap">
-              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">${esc(r.status || '—')}</span>
-            </td>
+            <td class="px-4 py-3 whitespace-nowrap">${payStatusBadge(r.status)}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
               <button type="button" onclick="showPayDetail(${esc(r.id)})"
                 class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50">Batafsil</button>
@@ -1808,27 +1815,6 @@
           ${d.payment_type ? `<div class="flex items-center justify-between"><span class="text-slate-500">To'lov turi</span><span class="font-semibold text-slate-700">${esc(d.payment_type)}</span></div>` : ''}
         </div>`;
     }
-
-    let payActionBusy = false;
-    async function payAction(action) {
-      if (!currentPayId || payActionBusy) return;
-      payActionBusy = true;
-      const id = currentPayId;
-      try {
-        const res = await fetch(`${PAY_API}?action=${action}&id=${encodeURIComponent(id)}`);
-        const json = await res.json();
-        if (!json.ok) throw new Error(json.error || 'Xatolik');
-        toast(action === 'approve' ? "To'lov tasdiqlandi" : "To'lov rad etildi", true);
-        closePayModal();
-        loadPayments();            // refresh the list (order leaves pay_approve)
-      } catch (e) {
-        toast("Xatolik: " + e.message, false);
-      } finally {
-        payActionBusy = false;
-      }
-    }
-    function payApprove() { payAction('approve'); }
-    function payReject()  { payAction('reject'); }
 
     function closePayModal() {
       $('#pay-modal').classList.add('hidden');
