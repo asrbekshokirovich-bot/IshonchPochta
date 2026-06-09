@@ -596,6 +596,9 @@
         <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-bold text-navy">To'lovlar</h2>
           <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <select id="pay-status" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+              <option value="">Barchasi</option>
+            </select>
             <input id="pay-search" placeholder="Klient kodi..."
               class="px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 text-sm" />
           </div>
@@ -1652,6 +1655,7 @@
     let payPage   = 1;          // 1-based (API is 1-based)
     let payTotal  = 0;
     let paySearch = '';
+    let payStatus = '';         // status filter ('' = Barchasi)
     let payLoaded = false;
     let payRows   = [];         // cache of current page rows (for detail modal)
 
@@ -1670,7 +1674,8 @@
       const tbody = $('#pay-tbody');
       tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Yuklanmoqda…</td></tr>`;
       const url = `${PAY_API}?page=${payPage}&limit=${PAY_PAGE_SIZE}`
-        + `&search=${encodeURIComponent(paySearch)}`;
+        + `&search=${encodeURIComponent(paySearch)}`
+        + `&status=${encodeURIComponent(payStatus)}`;
       try {
         const res = await fetch(url);
         const json = await res.json();
@@ -1688,15 +1693,24 @@
       }
     }
 
-    // Colored badge for an order's actual status.
-    const PAY_STATUS_BADGE = {
-      paid:        'bg-emerald-100 text-emerald-800',  // green
-      pay_approve: 'bg-amber-100 text-amber-800',      // yellow
-      new:         'bg-blue-100 text-blue-800',         // blue
+    // Order status -> Uzbek label + badge colors. Order here also drives the filter dropdown.
+    const PAY_STATUS_META = {
+      new:                 { label: 'Yangi',                    cls: 'bg-slate-100 text-slate-700' },     // gray
+      paid:                { label: "To'langan",               cls: 'bg-emerald-100 text-emerald-800' }, // green
+      order_process_start: { label: 'Jarayonda',               cls: 'bg-blue-100 text-blue-800' },       // blue
+      pochta_send:         { label: 'Pochtaga yuborildi',      cls: 'bg-cyan-100 text-cyan-800' },       // teal/cyan
+      tovar_photo_added:   { label: 'Rasm yuklandi',           cls: 'bg-purple-100 text-purple-800' },   // purple
+      BERILDI:             { label: 'Berildi',                 cls: 'bg-emerald-100 text-emerald-800' }, // green
+      wait_pochta_payment: { label: "Pochta to'lov kutilmoqda", cls: 'bg-amber-100 text-amber-800' },    // yellow
+      pay_rejected:        { label: 'Rad etildi',              cls: 'bg-red-100 text-red-800' },         // red
+      kuryer_send:         { label: 'Kuryerga berildi',        cls: 'bg-orange-100 text-orange-800' },   // orange
+      pay_approve:         { label: 'Tasdiqlash kutilmoqda',   cls: 'bg-amber-100 text-amber-800' },     // yellow
     };
     function payStatusBadge(status) {
-      const cls = PAY_STATUS_BADGE[status] || 'bg-slate-100 text-slate-700'; // gray fallback
-      return `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${esc(status || '—')}</span>`;
+      const m = (status != null && status !== '') ? PAY_STATUS_META[status] : null;
+      const label = m ? m.label : (status == null || status === '' ? "Noma'lum" : status);
+      const cls   = m ? m.cls   : 'bg-slate-100 text-slate-700'; // gray fallback / NULL
+      return `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${esc(label)}</span>`;
     }
 
     function renderPayments() {
@@ -1822,6 +1836,19 @@
     }
 
     // Payments wiring
+    // Populate the status filter from the same source as the badges.
+    for (const [val, m] of Object.entries(PAY_STATUS_META)) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = m.label;
+      $('#pay-status').appendChild(opt);
+    }
+    $('#pay-status').addEventListener('change', (e) => {
+      payStatus = e.target.value;
+      payPage = 1;
+      loadPayments();
+    });
+
     let paySearchTimer = null;
     $('#pay-search').addEventListener('input', (e) => {
       paySearch = e.target.value.trim();
