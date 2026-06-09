@@ -596,7 +596,7 @@
         <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-bold text-navy">To'lovlar</h2>
           <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <input id="pay-search" placeholder="Klient kodi yoki ID..."
+            <input id="pay-search" placeholder="Klient kodi..."
               class="px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 text-sm" />
           </div>
         </div>
@@ -609,7 +609,6 @@
                 <th class="text-left px-4 py-3 whitespace-nowrap">Sana</th>
                 <th class="text-left px-4 py-3 whitespace-nowrap">Klient</th>
                 <th class="text-left px-4 py-3 whitespace-nowrap">Summa ($)</th>
-                <th class="text-left px-4 py-3 whitespace-nowrap">To'lov turi</th>
                 <th class="text-left px-4 py-3 whitespace-nowrap">Status</th>
                 <th class="text-right px-4 py-3 whitespace-nowrap">Amallar</th>
               </tr>
@@ -1654,14 +1653,6 @@
     let payLoaded = false;
     let payRows   = [];         // cache of current page rows (for detail modal)
 
-    const PAY_TYPE_LABELS = { CARD: '💳 Karta', CASH: '💵 Naqd' };
-    const PAY_STATUS_LABELS = { accept: 'Qabul qilindi' };
-
-    function fmtMoney(n) {
-      const v = Number(n) || 0;
-      return v.toLocaleString('uz-UZ');
-    }
-
     function showView(name) {
       const isPay = name === 'tolovlar';
       document.getElementById('view-yuklar').classList.toggle('hidden', isPay);
@@ -1673,9 +1664,9 @@
 
     async function loadPayments() {
       const tbody = $('#pay-tbody');
-      tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">Yuklanmoqda…</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Yuklanmoqda…</td></tr>`;
       const url = `${PAY_API}?page=${payPage}&limit=${PAY_PAGE_SIZE}`
-        + `&search=${encodeURIComponent(paySearch)}&status=`;
+        + `&search=${encodeURIComponent(paySearch)}`;
       try {
         const res = await fetch(url);
         const json = await res.json();
@@ -1685,7 +1676,7 @@
         renderPayments();
       } catch (e) {
         payRows = []; payTotal = 0;
-        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-red-600">To'lovlarni yuklab bo'lmadi: ${esc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-red-600">To'lovlarni yuklab bo'lmadi: ${esc(e.message)}</td></tr>`;
         $('#pay-page-info').textContent = '—';
         $('#pay-prev').disabled = true;
         $('#pay-next').disabled = true;
@@ -1696,17 +1687,16 @@
     function renderPayments() {
       const tbody = $('#pay-tbody');
       if (!payRows.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">To'lov topilmadi</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">To'lov topilmadi</td></tr>`;
       } else {
         tbody.innerHTML = payRows.map(r => `
           <tr class="hover:bg-slate-50">
             <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${esc(r.id)}</td>
-            <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${esc(fmtDate(r.date))}</td>
+            <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${esc(fmtDate(r.created_date))}</td>
             <td class="px-4 py-3 whitespace-nowrap font-semibold">${esc(r.client || '—')}</td>
-            <td class="px-4 py-3 whitespace-nowrap font-semibold text-navy">$${esc(r.summa_usd)}</td>
-            <td class="px-4 py-3 whitespace-nowrap">${esc(PAY_TYPE_LABELS[r.payment_type] || r.payment_type || '—')}</td>
+            <td class="px-4 py-3 whitespace-nowrap font-semibold text-navy">$${esc(r.amount_usd)}</td>
             <td class="px-4 py-3 whitespace-nowrap">
-              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">${esc(PAY_STATUS_LABELS[r.status] || r.status || '—')}</span>
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">${esc(r.status || '—')}</span>
             </td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
               <button type="button" onclick="showPayDetail(${esc(r.id)})"
@@ -1727,15 +1717,11 @@
       if (!r) return;
       const rows = [
         ['ID', esc(r.id)],
-        ['Sana', esc(fmtDate(r.date))],
+        ['Sana', esc(fmtDate(r.created_date))],
         ['Klient', esc(r.client || '—')],
-        ['Zakaz №', esc(r.order_id || '—')],
-        ['Summa ($)', '$' + esc(r.summa_usd)],
-        ['Summa (UZS)', esc(fmtMoney(r.summa_uzs)) + " so'm"],
-        ['Kurs', esc(fmtMoney(r.kurs))],
-        ['Valyuta', esc(r.valyuta || '—')],
-        ["To'lov turi", esc(PAY_TYPE_LABELS[r.payment_type] || r.payment_type || '—')],
-        ['Status', esc(PAY_STATUS_LABELS[r.status] || r.status || '—')],
+        ['Summa ($)', '$' + esc(r.amount_usd)],
+        ['Status', esc(r.status || '—')],
+        ["To'langan", r.paid ? 'Ha' : "Yo'q"],
       ];
       $('#pay-modal-body').innerHTML = `<dl class="divide-y divide-slate-100">${
         rows.map(([k, v]) => `
