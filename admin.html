@@ -1738,14 +1738,22 @@
       el.outerHTML = `<div class="text-slate-400 text-sm py-6 text-center bg-slate-50 rounded-lg border border-slate-200">Chek rasmini yuklab bo'lmadi</div>`;
     }
 
+    // One check section: image (click to open full size) or a "not uploaded" placeholder.
+    function checkBox(url, label) {
+      return `
+        <div>
+          <div class="text-xs text-slate-400 uppercase tracking-wide mb-1.5">${label}</div>
+          ${url
+            ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="block">
+                 <img src="${esc(url)}" alt="${esc(label)}" onerror="imgErr(this)"
+                      class="w-full rounded-lg border border-slate-200 object-contain bg-slate-50" style="max-height:320px">
+               </a>`
+            : `<div class="text-slate-400 text-xs py-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-300">Chek yuklanmagan</div>`}
+        </div>`;
+    }
+
     function renderPayDetail(d) {
       const uzs = Math.round((Number(d.price) || 0) * KURS);
-      const photo = d.payment_photo_url
-        ? `<a href="${esc(d.payment_photo_url)}" target="_blank" rel="noopener" class="block">
-             <img src="${esc(d.payment_photo_url)}" alt="Chek rasmi" onerror="imgErr(this)"
-                  class="w-full rounded-lg border border-slate-200 object-contain bg-slate-50" style="max-height:360px">
-           </a>`
-        : `<div class="text-slate-400 text-sm py-6 text-center bg-slate-50 rounded-lg border border-slate-200">Chek rasmi yo'q</div>`;
 
       $('#pay-modal-body').innerHTML = `
         <div class="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-slate-100">
@@ -1777,8 +1785,10 @@
         </div>
 
         <div class="py-3 border-b border-slate-100">
-          <div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Chek rasmi</div>
-          ${photo}
+          <div class="grid grid-cols-2 gap-3">
+            ${checkBox(d.payment_photo_url, 'KARGO CHEKI')}
+            ${checkBox(d.pochta_photo_url, 'POCHTA UCHUN CHEK')}
+          </div>
         </div>
 
         <div class="pt-3 space-y-1">
