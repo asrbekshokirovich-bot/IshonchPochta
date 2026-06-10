@@ -594,7 +594,16 @@
     <div id="view-tolovlar" class="hidden">
       <section class="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-lg font-bold text-navy">To'lovlar</h2>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-bold text-navy">To'lovlar</h2>
+            <span id="pay-autorefresh" class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Avtomatik yangilanish: 15s
+            </span>
+          </div>
           <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <select id="pay-status" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
               <option value="">Barchasi</option>
@@ -1667,12 +1676,22 @@
       document.getElementById('view-btn-tolovlar').classList.toggle('active', isPay);
       // Remember the active tab so a refresh stays on it.
       window.location.hash = isPay ? '#tolovlar' : '#yuklar';
-      if (isPay && !payLoaded) { payLoaded = true; loadPayments(); }
+      if (isPay) {
+        if (!payLoaded) { payLoaded = true; loadPayments(); }
+        startPayAutoRefresh();
+      } else {
+        stopPayAutoRefresh();
+      }
     }
 
-    async function loadPayments() {
+    // silent=true → background auto-refresh: no "Yuklanmoqda…" flash, keep scroll
+    // position, and stay quiet on transient errors (the next tick will retry).
+    async function loadPayments(silent = false) {
       const tbody = $('#pay-tbody');
-      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Yuklanmoqda…</td></tr>`;
+      if (!silent) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Yuklanmoqda…</td></tr>`;
+      }
+      const scrollY = silent ? window.scrollY : null;
       const url = `${PAY_API}?page=${payPage}&limit=${PAY_PAGE_SIZE}`
         + `&search=${encodeURIComponent(paySearch)}`
         + `&status=${encodeURIComponent(payStatus)}`;
@@ -1683,7 +1702,11 @@
         payRows  = json.data || [];
         payTotal = json.total || 0;
         renderPayments();
+        // On page 1 the API returns newest-first, so a silent reload pulls any
+        // new orders to the top on its own — just keep the viewport steady.
+        if (silent && scrollY != null) window.scrollTo(0, scrollY);
       } catch (e) {
+        if (silent) return; // transient failure during auto-refresh — leave current data, retry next tick
         payRows = []; payTotal = 0;
         tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-red-600">To'lovlarni yuklab bo'lmadi: ${esc(e.message)}</td></tr>`;
         $('#pay-page-info').textContent = '—';
@@ -1691,6 +1714,17 @@
         $('#pay-next').disabled = true;
         toast("To'lovlarni yuklashda xatolik", false);
       }
+    }
+
+    /* Auto-refresh: poll the current page every 15s while To'lovlar is visible. */
+    const PAY_REFRESH_MS = 15000;
+    let payRefreshTimer = null;
+    function startPayAutoRefresh() {
+      if (payRefreshTimer) return;
+      payRefreshTimer = setInterval(() => loadPayments(true), PAY_REFRESH_MS);
+    }
+    function stopPayAutoRefresh() {
+      if (payRefreshTimer) { clearInterval(payRefreshTimer); payRefreshTimer = null; }
     }
 
     // Order status -> Uzbek label + badge colors. Order here also drives the filter dropdown.
