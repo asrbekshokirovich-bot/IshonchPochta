@@ -523,8 +523,21 @@
     <!-- Shipments table -->
     <section class="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-bold text-navy">Yuklar ro'yxati</h2>
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-bold text-navy">Yuklar ro'yxati</h2>
+          <span id="ship-autorefresh" class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Avtomatik yangilanish: 15s
+          </span>
+        </div>
         <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <label class="inline-flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer whitespace-nowrap select-none">
+            <input type="checkbox" id="show-delivered" class="rounded border-slate-300">
+            Yetkazilganlarni ko'rsatish
+          </label>
           <input id="search" placeholder="Tracking yoki qabul qiluvchi..."
             class="px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 text-sm" />
           <select id="status-filter" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
@@ -810,6 +823,7 @@
     let statusFilter = '';
     let regionFilter = '';
     let typeFilter = '';
+    let showDelivered = false;   // when false, 'delivered' (Yetkazildi) rows are hidden from the list
     let totalRows = 0;
 
     // Map between tab key and the status value it selects.
@@ -1192,7 +1206,9 @@
     }
 
     /* ────────── Table ────────── */
-    async function loadPage() {
+    // silent=true → background auto-refresh: preserve scroll position and stay
+    // quiet on transient errors (the next tick retries).
+    async function loadPage(silent = false) {
       const parts = [];
       if (searchQuery) {
         const q = encodeURIComponent('%' + searchQuery + '%');
@@ -1200,6 +1216,9 @@
       }
       if (statusFilter) {
         parts.push(`status=eq.${encodeURIComponent(statusFilter)}`);
+      } else if (!showDelivered) {
+        // Hide delivered shipments unless the user opted in (or explicitly filtered for them).
+        parts.push(`status=neq.delivered`);
       }
       if (regionFilter) {
         const r = encodeURIComponent('%' + regionFilter + '%');
@@ -1214,6 +1233,7 @@
       const to   = from + PAGE_SIZE - 1;
       const url  = `${SUPABASE_URL}/rest/v1/shipments?${filter}select=*&order=created_at.desc`;
 
+      const scrollY = silent ? window.scrollY : null;
       try {
         const r = await rateLimitedFetch(url, {
           headers: { ...getHeaders(), 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': `${from}-${to}` },
@@ -1223,10 +1243,26 @@
         const rows = await r.json();
         renderRows(Array.isArray(rows) ? rows : []);
         renderPaging();
+        if (silent && scrollY != null) window.scrollTo(0, scrollY);
       } catch (e) {
         console.error('loadPage', e);
-        toast('Yuklarni olishda xato', false);
+        if (!silent) toast('Yuklarni olishda xato', false);
       }
+    }
+
+    /* Auto-refresh: poll the current page every 15s while Yuklar is visible. */
+    const SHIP_REFRESH_MS = 15000;
+    let shipRefreshTimer = null;
+    function startShipAutoRefresh() {
+      if (shipRefreshTimer) return;
+      shipRefreshTimer = setInterval(() => {
+        // Don't yank rows out from under an in-progress bulk selection.
+        if (document.querySelector('#tbody .row-check:checked')) return;
+        loadPage(true);
+      }, SHIP_REFRESH_MS);
+    }
+    function stopShipAutoRefresh() {
+      if (shipRefreshTimer) { clearInterval(shipRefreshTimer); shipRefreshTimer = null; }
     }
 
     function renderRows(rows) {
@@ -1473,6 +1509,12 @@
       loadPage();
     });
 
+    $('#show-delivered').addEventListener('change', (e) => {
+      showDelivered = e.target.checked;
+      page = 0;
+      loadPage();
+    });
+
     /* ────────── Excel import ────────── */
     let selectedFile = null;
 
@@ -1679,8 +1721,10 @@
       if (isPay) {
         if (!payLoaded) { payLoaded = true; loadPayments(); }
         startPayAutoRefresh();
+        stopShipAutoRefresh();
       } else {
         stopPayAutoRefresh();
+        startShipAutoRefresh();
       }
     }
 
