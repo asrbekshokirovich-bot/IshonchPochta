@@ -436,7 +436,8 @@ def _pickup_page(code, p):
     name = html.escape(p["name"])
     addr = html.escape(p["address"])
     lat, lng = p["lat"], p["lng"]
-    coords = f"{lat},{lng}"
+    coords = f"{lat},{lng}"           # lat,lng — Google Maps & 2GIS
+    coords_lnglat = f"{lng},{lat}"    # lng,lat — Yandex expects longitude first
     inner = f"""
     <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
       <span class="inline-block bg-[#FF6B35] text-white text-xs font-extrabold px-3 py-1 rounded-full tracking-wider">{html.escape(code)}</span>
@@ -450,13 +451,17 @@ def _pickup_page(code, p):
       </div>
 
       <div class="mt-5 grid gap-3">
-        <a href="https://www.google.com/maps/dir/?api=1&destination={coords}" target="_blank" rel="noopener noreferrer"
+        <a href="https://www.google.com/maps/search/?api=1&query={coords}" target="_blank" rel="noopener noreferrer"
            class="w-full text-center py-3.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition">
            📍 Google Maps da ochish
         </a>
-        <a href="https://yandex.uz/maps/?rtext=~{coords}" target="_blank" rel="noopener noreferrer"
+        <a href="https://yandex.uz/maps/?pt={coords_lnglat}&z=16&l=map" target="_blank" rel="noopener noreferrer"
            class="w-full text-center py-3.5 rounded-xl font-bold text-navy-800 bg-white border-2 border-navy-800 hover:bg-navy-800 hover:text-white transition">
            🧭 Yandex Navigator
+        </a>
+        <a href="https://2gis.uz/search/{coords}" target="_blank" rel="noopener noreferrer"
+           class="w-full text-center py-3.5 rounded-xl font-bold text-white bg-[#FF6B35] hover:opacity-90 transition">
+           🗺️ 2GIS
         </a>
       </div>
     </div>
