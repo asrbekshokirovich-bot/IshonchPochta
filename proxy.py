@@ -14,6 +14,7 @@ Run locally:   python proxy.py            # listens on :10000
 Run on Render: gunicorn proxy:app --bind 0.0.0.0:$PORT
 """
 
+import html
 import json
 import os
 import re
@@ -44,6 +45,25 @@ CHAT_SYSTEM = (
 # Abuse guards for the public endpoint.
 CHAT_MAX_MESSAGES    = 16      # only keep the most recent turns
 CHAT_MAX_CHARS       = 2000    # per message
+
+# ─────────────────────── Pickup points (pochtamats) ───────────────────────
+# Served as shareable pages at /p/<code> (e.g. /p/P-0140). Coordinates are
+# approximate (district/town level) — refine per address as needed.
+SUPPORT_PHONE    = "+998 XX XXX XX XX"   # TODO: set the real support number
+TELEGRAM_LINK    = "https://t.me/Ishonchlogistics"
+INSTAGRAM_LINK   = "https://www.instagram.com/ishonch_logistics2026"
+
+pickup_points = {
+    "P-0140": {"name": "Namangan shahar", "address": "улица Амира Темура, 54, МФЙ Оби Хаёт, Наманган", "lat": 41.0011, "lng": 71.6722},
+    "P-0141": {"name": "Pop tumani", "address": "МФЙ Алишер Навоий, Поп, Наманганская область", "lat": 40.8786, "lng": 71.1092},
+    "P-0142": {"name": "Turakurgan", "address": "улица Туракурган, 23, МФЙ Янгиобод, Туракурган", "lat": 41.0167, "lng": 71.5167},
+    "P-0143": {"name": "Yangikurgan", "address": "улица Наманган, 2, городской посёлок Янгикурган", "lat": 41.1136, "lng": 71.7158},
+    "P-0144": {"name": "Narin tumani", "address": "улица Беруний, МФЙ Бобур, Хаккулабад, Нарынский район", "lat": 41.0833, "lng": 71.5500},
+    "P-0145": {"name": "Uychi", "address": "улица А.Темур, 1А, МФЙ Хуррият, городской посёлок Уйчи", "lat": 41.1000, "lng": 71.9333},
+    "P-0146": {"name": "Kasansay", "address": "МФЙ Абдурахмон Жомий, Касансайский район", "lat": 41.0600, "lng": 71.5600},
+    "P-0147": {"name": "Chust", "address": "МФЙ Камарсада, Чустский район", "lat": 41.0000, "lng": 71.2333},
+    "P-0148": {"name": "Chartak", "address": "Истиклол кўчаси, 24, Чартак", "lat": 41.0667, "lng": 71.7500},
+}
 
 # ─────────────────────── UzPost status mapping ───────────────────────
 # UzPost's public order API returns a single raw status code (e.g. "dispatched").
@@ -347,6 +367,123 @@ def chat():
     resp.headers["X-Accel-Buffering"] = "no"  # disable proxy buffering for streaming
     resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
     return resp
+
+
+# ───────────────────────── Pickup point pages ─────────────────────────
+# Shared <head> + navy header. %%TITLE%% is replaced per page; CSS braces are
+# why this is a plain string, not an f-string.
+_PAGE_HEAD = """<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>%%TITLE%% — Ishonch Logistics</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+    colors: { navy: { 900: '#07173a', 800: '#0c2454', 700: '#133068' },
+              brand: { 500: '#2b7fd8', 400: '#3fa3e3' } },
+  } } };
+</script>
+<style>
+  body { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+         background: linear-gradient(180deg, #f9f8fd 0%, #f0f4fa 100%); }
+  .hero-gradient { background: linear-gradient(135deg, #0a1628 0%, #0d2550 40%, #1a4480 70%, #1e5799 100%); }
+  .map-wrap { position: relative; width: 100%; aspect-ratio: 16/11; border-radius: 14px; overflow: hidden; }
+  .map-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body class="min-h-screen text-slate-900 antialiased flex flex-col">
+  <header class="hero-gradient">
+    <div class="max-w-2xl mx-auto px-6 py-5 flex items-center justify-between">
+      <a href="/" class="text-white font-extrabold text-lg tracking-tight">Ishonch Logistics</a>
+      <a href="%%TG%%" target="_blank" rel="noopener noreferrer"
+         class="text-white/85 hover:text-white text-sm font-semibold">Telegram</a>
+    </div>
+  </header>
+  <main class="flex-1 w-full max-w-2xl mx-auto px-5 py-7">
+"""
+
+
+def _page_foot():
+    tel = re.sub(r"[^\d+]", "", SUPPORT_PHONE)
+    return f"""  </main>
+  <footer class="hero-gradient mt-auto">
+    <div class="max-w-2xl mx-auto px-6 py-8 text-center">
+      <div class="text-white font-extrabold text-lg tracking-tight">Ishonch Logistics</div>
+      <p class="mt-1 text-white/60 text-[13px]">Yukingiz ishonchli qo'llarda.</p>
+      <div class="mt-4 flex flex-col items-center gap-2 text-white/85 text-sm">
+        <a href="tel:{html.escape(tel)}" class="hover:text-white">📞 {html.escape(SUPPORT_PHONE)}</a>
+        <a href="{html.escape(TELEGRAM_LINK)}" target="_blank" rel="noopener noreferrer" class="hover:text-white">✈️ Telegram</a>
+        <a href="{html.escape(INSTAGRAM_LINK)}" target="_blank" rel="noopener noreferrer" class="hover:text-white">📸 Instagram</a>
+      </div>
+      <p class="mt-5 text-white/40 text-[12px]">&copy; 2026 Ishonch Logistics. Barcha huquqlar himoyalangan.</p>
+    </div>
+  </footer>
+</body>
+</html>"""
+
+
+def _shell(title, inner):
+    return _PAGE_HEAD.replace("%%TITLE%%", html.escape(title)).replace("%%TG%%", html.escape(TELEGRAM_LINK)) \
+        + inner + _page_foot()
+
+
+def _pickup_page(code, p):
+    name = html.escape(p["name"])
+    addr = html.escape(p["address"])
+    lat, lng = p["lat"], p["lng"]
+    coords = f"{lat},{lng}"
+    inner = f"""
+    <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+      <span class="inline-block bg-[#FF6B35] text-white text-xs font-extrabold px-3 py-1 rounded-full tracking-wider">{html.escape(code)}</span>
+      <h1 class="mt-3 text-2xl sm:text-3xl font-extrabold text-navy-800 tracking-tight">{name}</h1>
+      <p class="mt-2 text-slate-600 text-[15px] leading-relaxed">{addr}</p>
+
+      <div class="map-wrap mt-5 border border-slate-100 shadow">
+        <iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen
+          src="https://maps.google.com/maps?q={coords}&z=16&output=embed"
+          title="{name} — xarita"></iframe>
+      </div>
+
+      <div class="mt-5 grid gap-3">
+        <a href="https://www.google.com/maps/dir/?api=1&destination={coords}" target="_blank" rel="noopener noreferrer"
+           class="w-full text-center py-3.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition">
+           📍 Google Maps da ochish
+        </a>
+        <a href="https://yandex.uz/maps/?rtext=~{coords}" target="_blank" rel="noopener noreferrer"
+           class="w-full text-center py-3.5 rounded-xl font-bold text-navy-800 bg-white border-2 border-navy-800 hover:bg-navy-800 hover:text-white transition">
+           🧭 Yandex Navigator
+        </a>
+      </div>
+    </div>
+"""
+    return _shell(f"{p['name']} ({code})", inner)
+
+
+def _pickup_not_found(code):
+    inner = f"""
+    <div class="bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div class="text-5xl">📍</div>
+      <h1 class="mt-4 text-2xl font-extrabold text-navy-800">Bekat topilmadi</h1>
+      <p class="mt-2 text-slate-600 text-[15px]">"{html.escape(code)}" kodli bekat mavjud emas yoki noto'g'ri kiritilgan.</p>
+      <a href="/" class="inline-block mt-6 py-3 px-6 rounded-xl font-bold text-white bg-[#FF6B35] hover:opacity-90 transition">Bosh sahifaga qaytish</a>
+    </div>
+"""
+    return _shell("Bekat topilmadi", inner)
+
+
+@app.route("/p/<code>", methods=["GET"])
+def pickup_point(code):
+    """Public pickup-point (pochtamat) page: /p/P-0140."""
+    key = (code or "").strip().upper()
+    p = pickup_points.get(key)
+    if not p:
+        return Response(_pickup_not_found(key), mimetype="text/html"), 404
+    return Response(_pickup_page(key, p), mimetype="text/html")
 
 
 @app.route("/healthz", methods=["GET"])
