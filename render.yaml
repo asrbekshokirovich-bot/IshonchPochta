@@ -18,6 +18,10 @@ services:
     envVars:
       - key: ALLOWED_ORIGIN
         value: "*"
+      # Anthropic API key for the /chat AI assistant. Set in the dashboard
+      # (sync:false) so the key is never committed to the repo.
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: PYTHON_VERSION
         value: "3.13.0"
 

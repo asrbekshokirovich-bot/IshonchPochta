@@ -14,6 +14,7 @@ Run locally:   python proxy.py            # listens on :10000
 Run on Render: gunicorn proxy:app --bind 0.0.0.0:$PORT
 """
 
+import json
 import os
 import re
 from datetime import datetime, timezone
@@ -22,6 +23,27 @@ import httpx
 from flask import Flask, Response, abort, jsonify, request, send_from_directory
 
 UZPOST_URL = "https://prodapi.pochta.uz/api/v1/public/order"
+
+# ─────────────────────── AI support assistant ───────────────────────
+# The browser must NOT call api.anthropic.com directly: that would ship the
+# Anthropic API key in public page source. Instead track.html POSTs to /chat
+# here, and this server adds the key (from the ANTHROPIC_API_KEY env var) and
+# streams Claude's reply back. Set ANTHROPIC_API_KEY in the Render dashboard.
+ANTHROPIC_URL     = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_MODEL   = "claude-sonnet-4-6"   # current Sonnet (claude-sonnet-4-20250514 retires 2026-06-15)
+ANTHROPIC_VERSION = "2023-06-01"
+CHAT_MAX_TOKENS   = 200
+CHAT_SYSTEM = (
+    "You are Ishonch Logistics customer support assistant. Answer in Uzbek. "
+    "Help with: shipment tracking, delivery times (24 hours within Uzbekistan), "
+    "pricing (1-2 kg = 28,000 so'm), 14 regions coverage, 180+ delivery points. "
+    "Be friendly and helpful. Keep answers short (2-3 sentences max). If asked "
+    "about specific tracking, tell them to enter the tracking number in the "
+    "search box above."
+)
+# Abuse guards for the public endpoint.
+CHAT_MAX_MESSAGES    = 16      # only keep the most recent turns
+CHAT_MAX_CHARS       = 2000    # per message
 
 # ─────────────────────── UzPost status mapping ───────────────────────
 # UzPost's public order API returns a single raw status code (e.g. "dispatched").
@@ -248,6 +270,83 @@ def track():
         return _cors(jsonify({"ok": False, "error": "upstream unreachable"})), 502
 
     return _cors(jsonify({"ok": True, **result}))
+
+
+@app.route("/chat", methods=["POST", "OPTIONS"])
+def chat():
+    """Proxy a streaming chat completion from Claude.
+
+    Request:  POST {"messages": [{"role": "user"|"assistant", "content": "..."}]}
+    Response: text/event-stream — raw Anthropic SSE relayed to the browser, which
+              reads `content_block_delta` text_delta events to render tokens.
+    The system prompt, model, and API key live server-side and are not client-set.
+    """
+    if request.method == "OPTIONS":
+        resp = _cors(Response(status=204))
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return resp
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        return _cors(jsonify({"ok": False, "error": "AI yordamchi sozlanmagan"})), 503
+
+    body = request.get_json(silent=True) or {}
+    raw_messages = body.get("messages")
+    if not isinstance(raw_messages, list) or not raw_messages:
+        return _cors(jsonify({"ok": False, "error": "messages kerak"})), 400
+
+    # Sanitise: keep only valid user/assistant turns, cap count and length.
+    messages = []
+    for m in raw_messages[-CHAT_MAX_MESSAGES:]:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        content = m.get("content")
+        if role in ("user", "assistant") and isinstance(content, str) and content.strip():
+            messages.append({"role": role, "content": content.strip()[:CHAT_MAX_CHARS]})
+    if not messages or messages[0]["role"] != "user":
+        return _cors(jsonify({"ok": False, "error": "noto'g'ri suhbat"})), 400
+
+    upstream_payload = {
+        "model": ANTHROPIC_MODEL,
+        "max_tokens": CHAT_MAX_TOKENS,
+        "system": CHAT_SYSTEM,
+        "messages": messages,
+        "stream": True,
+    }
+
+    def generate():
+        try:
+            with httpx.stream(
+                "POST",
+                ANTHROPIC_URL,
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": ANTHROPIC_VERSION,
+                    "content-type": "application/json",
+                },
+                json=upstream_payload,
+                timeout=30.0,
+            ) as upstream:
+                if upstream.status_code != 200:
+                    upstream.read()
+                    yield "event: error\ndata: " + json.dumps(
+                        {"error": "AI xizmatida xatolik"}
+                    ) + "\n\n"
+                    return
+                for chunk in upstream.iter_raw():
+                    if chunk:
+                        yield chunk.decode("utf-8", "replace")
+        except (httpx.TimeoutException, httpx.RequestError):
+            yield "event: error\ndata: " + json.dumps(
+                {"error": "AI yordamchiga ulanib bo'lmadi"}
+            ) + "\n\n"
+
+    resp = _cors(Response(generate(), mimetype="text/event-stream"))
+    resp.headers["Cache-Control"] = "no-cache"
+    resp.headers["X-Accel-Buffering"] = "no"  # disable proxy buffering for streaming
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    return resp
 
 
 @app.route("/healthz", methods=["GET"])
