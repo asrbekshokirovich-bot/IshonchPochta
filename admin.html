@@ -873,6 +873,19 @@
       } catch { return s; }
     }
 
+    // Payment dates arrive from the AliCargo server in China time (UTC+8).
+    // Convert to Tashkent (UTC+5) by subtracting 3 hours → "DD/MM/YYYY, HH:MM".
+    // Parsed component-wise so the result never depends on the admin's browser timezone.
+    function fmtPayDate(s) {
+      if (!s) return '—';
+      const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (!m) return fmtDate(s);
+      const [, y, mo, d, h, mi, se] = m;
+      const z = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +(se || 0)) - 3 * 3600 * 1000);
+      const p = n => String(n).padStart(2, '0');
+      return `${p(z.getUTCDate())}/${p(z.getUTCMonth() + 1)}/${z.getUTCFullYear()}, ${p(z.getUTCHours())}:${p(z.getUTCMinutes())}`;
+    }
+
     /* ────────── Stats ────────── */
     async function loadStats() {
       try {
@@ -1802,7 +1815,7 @@
         tbody.innerHTML = payRows.map(r => `
           <tr class="hover:bg-slate-50">
             <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${esc(r.id)}</td>
-            <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${esc(fmtDate(r.created_date))}</td>
+            <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${esc(fmtPayDate(r.created_date))}</td>
             <td class="px-4 py-3 whitespace-nowrap font-semibold">${esc(r.client || '—')}</td>
             <td class="px-4 py-3 whitespace-nowrap font-semibold text-navy">$${esc(r.amount_usd)}</td>
             <td class="px-4 py-3 whitespace-nowrap">${payStatusBadge(r.status)}</td>
@@ -1877,11 +1890,11 @@
         <div class="grid grid-cols-2 gap-3 py-3 border-b border-slate-100">
           <div>
             <div class="text-xs text-slate-400 uppercase tracking-wide">To'lov sanasi</div>
-            <div class="font-semibold text-slate-800">${esc(fmtDate(d.payment_date))}</div>
+            <div class="font-semibold text-slate-800">${esc(fmtPayDate(d.payment_date))}</div>
           </div>
           <div>
             <div class="text-xs text-slate-400 uppercase tracking-wide">Buyurtma sanasi</div>
-            <div class="font-semibold text-slate-800">${esc(fmtDate(d.created_date))}</div>
+            <div class="font-semibold text-slate-800">${esc(fmtPayDate(d.created_date))}</div>
           </div>
         </div>
 
