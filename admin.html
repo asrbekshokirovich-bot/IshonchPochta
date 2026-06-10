@@ -618,6 +618,7 @@
             </span>
           </div>
           <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <select id="pay-month" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
             <select id="pay-status" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
               <option value="">Barchasi</option>
             </select>
@@ -1707,6 +1708,7 @@
     let payTotal  = 0;
     let paySearch = '';
     let payStatus = '';         // status filter ('' = Barchasi)
+    let payMonth  = '';         // 'YYYY-MM' month filter ('' = default current month on the API)
     let payLoaded = false;
     let payRows   = [];         // cache of current page rows (for detail modal)
 
@@ -1738,7 +1740,8 @@
       const scrollY = silent ? window.scrollY : null;
       const url = `${PAY_API}?page=${payPage}&limit=${PAY_PAGE_SIZE}`
         + `&search=${encodeURIComponent(paySearch)}`
-        + `&status=${encodeURIComponent(payStatus)}`;
+        + `&status=${encodeURIComponent(payStatus)}`
+        + (payMonth ? `&month=${encodeURIComponent(payMonth)}` : '');
       try {
         const res = await fetch(url);
         const json = await res.json();
@@ -1923,6 +1926,26 @@
     }
     $('#pay-status').addEventListener('change', (e) => {
       payStatus = e.target.value;
+      payPage = 1;
+      loadPayments();
+    });
+
+    // Populate the month filter with the last 6 months (current month first = default).
+    const UZ_MONTHS = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+    (function initPayMonths() {
+      const sel = $('#pay-month');
+      const now = new Date();
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const opt = document.createElement('option');
+        opt.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        opt.textContent = `${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+        sel.appendChild(opt);
+      }
+      payMonth = sel.value;   // default to the current month
+    })();
+    $('#pay-month').addEventListener('change', (e) => {
+      payMonth = e.target.value;
       payPage = 1;
       loadPayments();
     });
