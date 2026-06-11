@@ -344,6 +344,10 @@ def chat():
                     "x-api-key": api_key,
                     "anthropic-version": ANTHROPIC_VERSION,
                     "content-type": "application/json",
+                    # Force an uncompressed stream. With iter_raw() we relay bytes
+                    # verbatim, so a gzip/br upstream would reach the client still
+                    # compressed but unlabeled — unreadable SSE. identity avoids it.
+                    "accept-encoding": "identity",
                 },
                 json=upstream_payload,
                 timeout=30.0,
@@ -356,7 +360,7 @@ def chat():
                     return
                 for chunk in upstream.iter_raw():
                     if chunk:
-                        yield chunk.decode("utf-8", "replace")
+                        yield chunk
         except (httpx.TimeoutException, httpx.RequestError):
             yield "event: error\ndata: " + json.dumps(
                 {"error": "AI yordamchiga ulanib bo'lmadi"}
