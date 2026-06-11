@@ -54,15 +54,15 @@ TELEGRAM_LINK    = "https://t.me/Ishonchlogistics"
 INSTAGRAM_LINK   = "https://www.instagram.com/ishonch_logistics2026"
 
 pickup_points = {
-    "P-0140": {"name": "Namangan shahar", "address": "улица Амира Темура, 54, МФЙ Оби Хаёт, Наманган", "lat": 41.003695, "lng": 71.606214},
-    "P-0141": {"name": "Pop tumani", "address": "МФЙ Алишер Навоий, Поп, Наманганская область", "lat": 40.874712, "lng": 71.104497},
-    "P-0142": {"name": "Turakurgan", "address": "улица Туракурган, 23, МФЙ Янгиобод, Туракурган", "lat": 40.974399, "lng": 71.453684},
-    "P-0143": {"name": "Yangikurgan", "address": "улица Наманган, 2, городской посёлок Янгикурган", "lat": 41.198677, "lng": 71.720727},
-    "P-0144": {"name": "Narin tumani", "address": "улица Беруний, МФЙ Бобур, Хаккулабад, Нарынский район", "lat": 40.996031, "lng": 71.612863},
-    "P-0145": {"name": "Uychi", "address": "улица А.Темур, 1А, МФЙ Хуррият, городской посёлок Уйчи", "lat": 41.1119, "lng": 71.9247},
-    "P-0146": {"name": "Kasansay", "address": "МФЙ Абдурахмон Жомий, Касансайский район", "lat": 41.2471, "lng": 71.5427},
-    "P-0147": {"name": "Chust", "address": "МФЙ Камарсада, Чустский район", "lat": 40.9937, "lng": 71.2322},
-    "P-0148": {"name": "Chartak", "address": "Истиклол кўчаси, 24, Чартак", "lat": 41.0768, "lng": 71.8151},
+    "P-0140": {"name": "Namangan shahar", "address": "Amir Temur ko'chasi, 54, MFY Obi Hayot, Namangan", "lat": 40.985057, "lng": 71.683716},
+    "P-0141": {"name": "Pop tumani", "address": "MFY Alisher Navoiy, Pop tumani, Namangan viloyati", "lat": 40.874712, "lng": 71.104497},
+    "P-0142": {"name": "Turakurgan", "address": "Turakurgan tumani, Namangan viloyati", "lat": 41.003768, "lng": 71.510716},
+    "P-0143": {"name": "Yangikurgan", "address": "Yangikurgan tumani, Namangan viloyati", "lat": 41.187877, "lng": 71.727088},
+    "P-0144": {"name": "Narin tumani", "address": "MFY Bobur, Haqqulabod, Narin tumani, Namangan viloyati", "lat": 40.915408, "lng": 72.119713},
+    "P-0145": {"name": "Uychi", "address": "A.Temur ko'chasi, 1A, MFY Hurriyat, Uychi tumani", "lat": 41.018488, "lng": 71.846802},
+    "P-0146": {"name": "Kasansay", "address": "Gulabad ko'chasi, Kasansay tumani, Namangan viloyati", "lat": 41.238621, "lng": 71.548429},
+    "P-0147": {"name": "Chust", "address": "MFY Kamarsada, Chust tumani, Namangan viloyati", "lat": 40.999075, "lng": 71.232137},
+    "P-0148": {"name": "Chartak", "address": "Istiqlol ko'chasi, 24, Chartak tumani", "lat": 41.076843, "lng": 71.815080},
 }
 
 # ─────────────────────── UzPost status mapping ───────────────────────
