@@ -1832,6 +1832,11 @@
       if (!payRows.length) {
         tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">To'lov topilmadi</td></tr>`;
       } else {
+        // Sort newest-first by date. The API orders by ID DESC, but created_date
+        // can be out of step with ID order, so re-sort on the client to be sure.
+        // Normalise "YYYY-MM-DD HH:MM:SS" → ISO "T" form so every browser parses it.
+        const payTime = s => new Date(String(s || '').replace(' ', 'T')).getTime() || 0;
+        payRows.sort((a, b) => payTime(b.created_date) - payTime(a.created_date));
         tbody.innerHTML = payRows.map(r => `
           <tr class="hover:bg-slate-50">
             <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">${esc(r.id)}</td>
